@@ -12,7 +12,7 @@ from .constants import GEOIP_PATH, ORBITAL_UDP_SERVER
 
 try:
     geocoder = GeoIP.open(GEOIP_PATH, GeoIP.GEOIP_MEMORY_CACHE)
-except IOError:
+except Exception:
     warnings.warn('Unable to find GeoIP data at %r' % GEOIP_PATH)
     geocoder = None
     geocode_addr = lambda ip: None
