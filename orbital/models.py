@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-import pygeoip
+import GeoIP
 import socket
 import warnings
 
@@ -11,7 +11,7 @@ from time import time
 from .constants import GEOIP_PATH, ORBITAL_UDP_SERVER
 
 try:
-    geocoder = pygeoip.GeoIP(GEOIP_PATH, pygeoip.MEMORY_CACHE)
+    geocoder = GeoIP.open(GEOIP_PATH, GeoIP.GEOIP_MEMORY_CACHE)
 except IOError:
     warnings.warn('Unable to find GeoIP data at %r' % GEOIP_PATH)
     geocoder = None
