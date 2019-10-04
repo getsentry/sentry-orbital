@@ -10,7 +10,7 @@
 .DS_Store
 .tox
 /.tox
-/*.egg-info
+*.egg-info
 /build
 /cover
 /dist
@@ -18,5 +18,5 @@
 bin/
 include/
 lib/
-venv
+.venv
 pip-log.txt
