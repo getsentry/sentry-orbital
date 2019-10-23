@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 import socket
-import warnings
 
 from sentry.signals import event_accepted
 from sentry.utils.geo import geo_by_addr
