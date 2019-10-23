@@ -18,11 +18,6 @@ for m in ('multiprocessing', 'billiard'):
 
 from setuptools import setup, find_packages
 
-install_requires = [
-    'gevent',
-    'sentry',
-]
-
 setup(
     name='sentry-orbital',
     version='0.1.0',
@@ -34,14 +29,11 @@ setup(
     packages=find_packages(exclude=("tests", "tests.*",)),
     zip_safe=False,
     license='Apache 2.0',
-    install_requires=install_requires,
+    install_requires=[],
     include_package_data=True,
     entry_points={
         'sentry.apps': [
             'orbital = orbital',
-        ],
-        'console_scripts': [
-            'orbital = orbital.cli:main',
         ],
     },
     classifiers=[
@@ -49,12 +41,7 @@ setup(
         'Intended Audience :: System Administrators',
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python',
         'Topic :: Software Development',
     ],
