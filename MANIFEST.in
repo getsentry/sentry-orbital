@@ -1,4 +1,0 @@
-include setup.py README.rst MANIFEST.in LICENSE AUTHORS
-recursive-include orbital/templates *
-recursive-include orbital/static *
-global-exclude *~

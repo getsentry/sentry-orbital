@@ -166,10 +166,10 @@
         setTimeout(orbital.watchActiveLayer, 3000);
     };
 
-    orbital.init = function(el, options) {
+    orbital.init = function(el) {
         element = el;
 
-        orbital.stream = options.stream;
+        orbital.stream = '/stream';
 
         sizePageElements();
 
