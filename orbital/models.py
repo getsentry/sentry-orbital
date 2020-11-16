@@ -10,11 +10,12 @@ from time import time
 
 from .constants import ORBITAL_UDP_SERVER
 
-udp_addr = ORBITAL_UDP_SERVER.split(':', 1)
+udp_addr = ORBITAL_UDP_SERVER.split(":", 1)
 udp_addr[1] = int(udp_addr[1])
 udp_addr = tuple(udp_addr)
 
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
 
 @event_accepted.connect(weak=False)
 def notify_orbital(ip, data=None, **kwargs):
@@ -27,15 +28,15 @@ def notify_orbital(ip, data=None, **kwargs):
         return
 
     if data:
-        platform = (data.get('platform') or 'other').lower()
+        platform = (data.get("platform") or "other").lower()
     else:
-        platform = ''
+        platform = ""
 
     data = [
-        round(result['latitude'], 4),
-        round(result['longitude'], 4),
+        round(result["latitude"], 4),
+        round(result["longitude"], 4),
         int(time() * 1000),
         platform,
     ]
 
-    udp_socket.sendto(dumps(data), udp_addr)
+    udp_socket.sendto(dumps(data).encode("utf-8"), udp_addr)
