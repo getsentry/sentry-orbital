@@ -51,15 +51,15 @@ func runTest(port int) {
 		"other",
 	}
 
-	rand.Seed(time.Now().UnixNano())
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for {
 		b := []byte(fmt.Sprintf(
 			`[%d,%d,%d,"%s"]`,
-			rand.Intn(180)-90,
-			rand.Intn(360)-180,
+			rng.Intn(180)-90,
+			rng.Intn(360)-180,
 			int(time.Now().UnixNano()/1000000),
-			platforms[rand.Intn(len(platforms))],
+			platforms[rng.Intn(len(platforms))],
 		))
 		time.Sleep(time.Millisecond / 2)
 		conn.WriteTo(b, dst)
