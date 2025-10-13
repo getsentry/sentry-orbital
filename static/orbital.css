@@ -84,12 +84,9 @@ canvas {
     height: 1800px;
 }
 #mapdata {
-    -moz-transform-origin: 0 0;
-    -webkit-transform-origin: 0 0;
-    -o-transform-origin: 0 0;
-    -ms-transform-origin: 0 0;
-    width:3600px;
-    height:1800px;
+    transform-origin: 0 0;
+    width: 3600px;
+    height: 1800px;
     position: absolute;
     top: 0;
     left: 0;

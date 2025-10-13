@@ -1,63 +1,119 @@
 (function(){
-    orbital = this;
+    const orbital = window.orbital = {};
 
-    var maxLayers = 30;
-    var dateKeyFunc = function(){
+    const maxLayers = 30;
+    const dateKeyFunc = function(){
         return new Date().getMinutes();
     };
-    var lastDateKey = null;
-    var element = null;
-    var layers = [];
-    var activeLayer;
-    var adjustOffset = 0;
-    var targetHeight = 1800;
-    var targetWidth = 3600;
-    var setHeight;
-    var setWidth;
-    var currentData = [];
-    var lastMessage = null;
-    var windowInFocus = true;
+    let lastDateKey = null;
+    let element = null;
+    let layers = [];
+    let activeLayer;
+    const adjustOffset = 0;
+    const targetHeight = 1800;
+    const targetWidth = 3600;
+    let setHeight;
+    let setWidth;
+    let windowInFocus = true;
+    let animationCanvas = null;
+    let animationCtx = null;
+    const activeAnimations = [];
 
-    $(window).focus(function() {
+    window.addEventListener('focus', function() {
         windowInFocus = true;
     });
 
-    $(window).blur(function() {
+    window.addEventListener('blur', function() {
         windowInFocus = false;
     });
 
-    function sizePageElements() {
-        var $geo = $("#geo");
-        $geo.css("height", $("body").height() - adjustOffset);
-        if ($geo.width() / $geo.height() > 2) {
-            orbital.scale = $geo.height() / targetHeight;
-        } else {
-            orbital.scale = $geo.width() / targetWidth;
+    // Animation system to replace jCanvaScript
+    class CircleAnimation {
+        constructor(x, y, startRadius, endRadius, startOpacity, endOpacity, duration, color, onComplete) {
+            this.x = x;
+            this.y = y;
+            this.startRadius = startRadius;
+            this.endRadius = endRadius;
+            this.startOpacity = startOpacity;
+            this.endOpacity = endOpacity;
+            this.duration = duration;
+            this.color = color;
+            this.onComplete = onComplete;
+            this.startTime = Date.now();
+            this.completed = false;
         }
-        element.css({
-            "top": $geo.height() - targetHeight * orbital.scale,
-            "left": ($geo.width() - targetWidth * orbital.scale) / 2
-        });
 
-        setWidth = element.width();
-        setHeight = element.height();
+        draw(ctx) {
+            const elapsed = Date.now() - this.startTime;
+            const progress = Math.min(elapsed / this.duration, 1);
 
-        $('#mapdata').css({
-            "-moz-transform": "scale(" + orbital.scale + ")",
-            "-webkit-transform": "scale(" + orbital.scale + ")",
-            "-ms-transform": "scale(" + orbital.scale + ")",
-            "-o-transform": "scale(" + orbital.scale + ")"
+            if (progress >= 1) {
+                this.completed = true;
+                if (this.onComplete) {
+                    this.onComplete();
+                }
+                return;
+            }
+
+            const currentRadius = this.startRadius + (this.endRadius - this.startRadius) * progress;
+            const currentOpacity = this.startOpacity + (this.endOpacity - this.startOpacity) * progress;
+
+            ctx.fillStyle = `rgba(${this.color[0]}, ${this.color[1]}, ${this.color[2]}, ${currentOpacity})`;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, currentRadius, 0, Math.PI * 2, false);
+            ctx.fill();
+        }
+    }
+
+    function animate() {
+        if (!animationCtx) return;
+
+        animationCtx.clearRect(0, 0, animationCanvas.width, animationCanvas.height);
+
+        for (let i = activeAnimations.length - 1; i >= 0; i--) {
+            const anim = activeAnimations[i];
+            anim.draw(animationCtx);
+            if (anim.completed) {
+                activeAnimations.splice(i, 1);
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    function sizePageElements() {
+        const geo = document.getElementById('geo');
+        const body = document.body;
+
+        geo.style.height = (body.offsetHeight - adjustOffset) + 'px';
+
+        if (geo.offsetWidth / geo.offsetHeight > 2) {
+            orbital.scale = geo.offsetHeight / targetHeight;
+        } else {
+            orbital.scale = geo.offsetWidth / targetWidth;
+        }
+
+        element.style.top = (geo.offsetHeight - targetHeight * orbital.scale) + 'px';
+        element.style.left = ((geo.offsetWidth - targetWidth * orbital.scale) / 2) + 'px';
+
+        setWidth = element.offsetWidth;
+        setHeight = element.offsetHeight;
+
+        const mapdata = document.getElementById('mapdata');
+        mapdata.style.transform = `scale(${orbital.scale})`;
+
+        const canvases = element.querySelectorAll('canvas');
+        canvases.forEach(canvas => {
+            canvas.style.width = setWidth + 'px';
+            canvas.style.height = setHeight + 'px';
+            canvas.width = setWidth;
+            canvas.height = setHeight;
         });
-        $("canvas").css({
-            width: setWidth + "px",
-            height: setHeight + "px"
-        });
-        $("canvas").attr('width', setWidth);
-        $("canvas").attr('height', setHeight);
     }
 
     orbital.stream = null;
     orbital.source = null;
+    orbital.scale = 1;
 
     orbital.getColor = function(data) {
         switch (data.platform) {
@@ -74,24 +130,33 @@
             default:
                 return [255, 255, 255];
         }
-    }
+    };
 
     orbital.addData = function(data) {
-        var x = ~~((parseFloat(data.lng) + 180) * 10) * orbital.scale,
-            y = ~~((-parseFloat(data.lat) + 90) * 10) * orbital.scale;
+        const x = ~~((parseFloat(data.lng) + 180) * 10) * orbital.scale;
+        const y = ~~((-parseFloat(data.lat) + 90) * 10) * orbital.scale;
 
-        var color = orbital.getColor(data);
+        const color = orbital.getColor(data);
 
-        // render and animate our point
-        var point = jc.circle(x, y,
-            5, "rgba(" + color[0] + ", " + color[1] + ", " + color[2] + ", 1)", 1)
-          .animate({radius:1, opacity:0.4}, 300, function(){
-              point.del();
-              activeLayer.fillStyle = "rgba(" + color[0] + ", " + color[1] + ", " + color[2] + ", 0.2)";
-              activeLayer.beginPath();
-              activeLayer.arc(x, y, 1, 0, Math.PI * 2, false);
-              activeLayer.fill();
-          });
+        // Create and animate our point
+        const animation = new CircleAnimation(
+            x, y,
+            5, 1,
+            1, 0.4,
+            300,
+            color,
+            function() {
+                // After animation completes, draw permanent dot on active layer
+                if (activeLayer) {
+                    activeLayer.fillStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.2)`;
+                    activeLayer.beginPath();
+                    activeLayer.arc(x, y, 1, 0, Math.PI * 2, false);
+                    activeLayer.fill();
+                }
+            }
+        );
+
+        activeAnimations.push(animation);
     };
 
     orbital.connect = function(){
@@ -99,12 +164,12 @@
 
         orbital.source = new EventSource(orbital.stream);
         orbital.source.onopen = function(e) {
-          console.log('[Stream] Connection opened to ' + orbital.stream);
+            console.log('[Stream] Connection opened to ' + orbital.stream);
         };
 
         orbital.source.onmessage = function(e){
             if (windowInFocus) {
-                var data = JSON.parse(e.data);
+                const data = JSON.parse(e.data);
                 orbital.addData({
                     lat: data[0],
                     lng: data[1],
@@ -114,6 +179,9 @@
             }
         };
 
+        orbital.source.onerror = function(e) {
+            console.error('[Stream] Connection error', e);
+        };
     };
 
     orbital.disconnect = function(){
@@ -126,23 +194,23 @@
     };
 
     orbital.createLayer = function(dateKey){
-        var layer = $('<canvas data-date-key="' + dateKey + '"></canvas>').css({
-            width: setWidth + 'px',
-            height: setHeight + 'px'
-        }).attr({
-            width: setWidth,
-            height: setHeight
-        });
-        element.append(layer);
+        const layer = document.createElement('canvas');
+        layer.setAttribute('data-date-key', dateKey);
+        layer.style.width = setWidth + 'px';
+        layer.style.height = setHeight + 'px';
+        layer.width = setWidth;
+        layer.height = setHeight;
+
+        element.appendChild(layer);
         layers.push(layer);
 
         return layer;
     };
 
     orbital.watchActiveLayer = function() {
-        dateKey = dateKeyFunc();
+        const dateKey = dateKeyFunc();
 
-        if (dateKey == lastDateKey) {
+        if (dateKey === lastDateKey) {
             setTimeout(orbital.watchActiveLayer, 3000);
             return;
         }
@@ -150,36 +218,46 @@
         lastDateKey = dateKey;
 
         // create a new layer
-        layer = orbital.createLayer(dateKey);
+        const layer = orbital.createLayer(dateKey);
 
         // set the new layer as the active layer
-        activeLayer = layer[0].getContext("2d");
+        activeLayer = layer.getContext('2d');
 
         // remove excess layers
-        var excess = layers.slice(maxLayers, layers.length);
-        orbital.layers = layers.slice(0, maxLayers);
-        for (var i=0; i<excess.length; i++) {
-            console.log('Removing layer ( ' + excess[i].attr('data-date-key') + ' )');
-            excess[i].remove();
+        if (layers.length > maxLayers) {
+            const excess = layers.slice(maxLayers);
+            layers = layers.slice(0, maxLayers);
+
+            excess.forEach(function(excessLayer) {
+                console.log('Removing layer ( ' + excessLayer.getAttribute('data-date-key') + ' )');
+                excessLayer.remove();
+            });
         }
 
         setTimeout(orbital.watchActiveLayer, 3000);
     };
 
-    orbital.init = function(el) {
-        element = el;
+    orbital.init = function(containerElement) {
+        element = containerElement;
 
         orbital.stream = '/stream';
 
         sizePageElements();
 
-        jc.start('pings', true);
+        // Initialize animation canvas
+        animationCanvas = document.getElementById('pings');
+        animationCtx = animationCanvas.getContext('2d');
+
+        // Start animation loop
+        animate();
 
         orbital.watchActiveLayer();
 
-        window.onbeforeunload = function() {
+        window.addEventListener('beforeunload', function() {
             orbital.disconnect();
-        };
+        });
+
+        window.addEventListener('resize', sizePageElements);
 
         orbital.connect();
     };

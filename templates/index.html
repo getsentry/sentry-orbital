@@ -19,9 +19,11 @@
         <strong>&copy; {{.Year}} The Sentry Team</strong>
       </section>
     </div>
-    <script src="/static/jCanvaScript.1.5.14.min.js"></script>
-    <script src="/static/jquery.js"></script>
     <script src="/static/orbital.js"></script>
-    <script>orbital.init($("#map_container"));</script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        orbital.init(document.getElementById('map_container'));
+      });
+    </script>
   </body>
 </html>
