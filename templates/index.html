@@ -4,6 +4,10 @@
     <meta charset="utf-8">
     <title data-gettext>Sentry Live</title>
     <link href="/static/orbital.css" rel="stylesheet"/>
+    <script
+      src="https://js.sentry-cdn.com/895a838587d91de1c3939a8f87904777.min.js"
+      crossorigin="anonymous"
+    ></script>
   </head>
   <body>
     <div id="app">
@@ -19,9 +23,11 @@
         <strong>&copy; {{.Year}} The Sentry Team</strong>
       </section>
     </div>
-    <script src="/static/jCanvaScript.1.5.14.min.js"></script>
-    <script src="/static/jquery.js"></script>
     <script src="/static/orbital.js"></script>
-    <script>orbital.init($("#map_container"));</script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        orbital.init(document.getElementById('map_container'));
+      });
+    </script>
   </body>
 </html>
