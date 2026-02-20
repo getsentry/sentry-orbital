@@ -302,6 +302,16 @@ function addFeedItem(platform, lat, lng) {
 
 // ── SSE stream ────────────────────────────────────────────────────────────────
 
+let windowInFocus = !document.hidden;
+document.addEventListener('visibilitychange', () => {
+  windowInFocus = !document.hidden;
+  if (windowInFocus) {
+    // Trim any stale timestamps that accumulated while the tab was hidden
+    const cutoff = Date.now() - 5000;
+    while (eventTimestamps.length && eventTimestamps[0] < cutoff) eventTimestamps.shift();
+  }
+});
+
 const source = new EventSource('/stream');
 
 source.onmessage = (e) => {
@@ -309,6 +319,12 @@ source.onmessage = (e) => {
   const now = Date.now();
 
   totalEvents++;
+
+  // Don't queue Three.js meshes or grow eventTimestamps while the tab is
+  // backgrounded — rAF is paused so animate() won't run cleanup, and meshes
+  // would accumulate until the tab refocuses causing a freeze.
+  if (!windowInFocus) return;
+
   eventTimestamps.push(now);
 
   if (now - lastDisplayTime >= DISPLAY_RATE) {
