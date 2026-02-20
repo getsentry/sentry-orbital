@@ -291,11 +291,25 @@ function addFeedItem(platform, lat, lng) {
   const color  = '#' + (PLATFORM_COLORS[platform] ?? SENTRY.violetSoft).toString(16).padStart(6, '0');
   const latStr = `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'}`;
   const lngStr = `${Math.abs(lng).toFixed(1)}°${lng >= 0 ? 'E' : 'W'}`;
+  
   const li = document.createElement('li');
-  li.innerHTML =
-    `<span class="dot" style="background:${color}"></span>` +
-    `<span class="feed-platform">${platform}</span>` +
-    `<span class="feed-location">${latStr} ${lngStr}</span>`;
+  
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  dot.style.background = color;
+  
+  const platformSpan = document.createElement('span');
+  platformSpan.className = 'feed-platform';
+  platformSpan.textContent = platform;
+  
+  const locationSpan = document.createElement('span');
+  locationSpan.className = 'feed-location';
+  locationSpan.textContent = `${latStr} ${lngStr}`;
+  
+  li.appendChild(dot);
+  li.appendChild(platformSpan);
+  li.appendChild(locationSpan);
+  
   feedList.insertBefore(li, feedList.firstChild);
   while (feedList.children.length > MAX_FEED) feedList.removeChild(feedList.lastChild);
 }
