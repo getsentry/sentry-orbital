@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine AS builder
+FROM golang:1.22-alpine AS builder
 RUN mkdir -p /usr/src/orbital
 COPY . /usr/src/orbital
 WORKDIR /usr/src/orbital
