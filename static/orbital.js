@@ -314,7 +314,9 @@ source.onmessage = (e) => {
   if (now - lastDisplayTime >= DISPLAY_RATE) {
     lastDisplayTime = now;
     addMarker(lat, lng, platform);
-    recordError(lat, lng);
+    if (platform === 'error') {
+      recordError(lat, lng);
+    }
   }
 
   if (now - lastFeedUpdate >= FEED_RATE) {
