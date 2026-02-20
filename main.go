@@ -30,7 +30,8 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "ok", 200)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("ok"))
 }
 
 func runTest(port int) {
