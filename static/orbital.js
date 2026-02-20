@@ -291,11 +291,25 @@ function addFeedItem(platform, lat, lng) {
   const color  = '#' + (PLATFORM_COLORS[platform] ?? SENTRY.violetSoft).toString(16).padStart(6, '0');
   const latStr = `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'}`;
   const lngStr = `${Math.abs(lng).toFixed(1)}°${lng >= 0 ? 'E' : 'W'}`;
+  
   const li = document.createElement('li');
-  li.innerHTML =
-    `<span class="dot" style="background:${color}"></span>` +
-    `<span class="feed-platform">${platform}</span>` +
-    `<span class="feed-location">${latStr} ${lngStr}</span>`;
+  
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  dot.style.background = color;
+  
+  const platformSpan = document.createElement('span');
+  platformSpan.className = 'feed-platform';
+  platformSpan.textContent = platform;
+  
+  const locationSpan = document.createElement('span');
+  locationSpan.className = 'feed-location';
+  locationSpan.textContent = `${latStr} ${lngStr}`;
+  
+  li.appendChild(dot);
+  li.appendChild(platformSpan);
+  li.appendChild(locationSpan);
+  
   feedList.insertBefore(li, feedList.firstChild);
   while (feedList.children.length > MAX_FEED) feedList.removeChild(feedList.lastChild);
 }
@@ -315,27 +329,41 @@ document.addEventListener('visibilitychange', () => {
 const source = new EventSource('/stream');
 
 source.onmessage = (e) => {
-  const [lat, lng, , platform] = JSON.parse(e.data);
-  const now = Date.now();
+  try {
+    const [lat, lng, , platform] = JSON.parse(e.data);
+    
+    if (typeof lat !== 'number' || typeof lng !== 'number' || 
+        lat < -90 || lat > 90 || lng < -180 || lng > 180 ||
+        typeof platform !== 'string') {
+      console.warn('[Sentry Live] Invalid event data:', e.data);
+      return;
+    }
+    
+    const now = Date.now();
 
-  totalEvents++;
+    totalEvents++;
 
-  // Don't queue Three.js meshes or grow eventTimestamps while the tab is
-  // backgrounded — rAF is paused so animate() won't run cleanup, and meshes
-  // would accumulate until the tab refocuses causing a freeze.
-  if (!windowInFocus) return;
+    // Don't queue Three.js meshes or grow eventTimestamps while the tab is
+    // backgrounded — rAF is paused so animate() won't run cleanup, and meshes
+    // would accumulate until the tab refocuses causing a freeze.
+    if (!windowInFocus) return;
 
-  eventTimestamps.push(now);
+    eventTimestamps.push(now);
 
-  if (now - lastDisplayTime >= DISPLAY_RATE) {
-    lastDisplayTime = now;
-    addMarker(lat, lng, platform);
-    recordError(lat, lng);
-  }
+    if (now - lastDisplayTime >= DISPLAY_RATE) {
+      lastDisplayTime = now;
+      addMarker(lat, lng, platform);
+      if (platform === 'error') {
+        recordError(lat, lng);
+      }
+    }
 
-  if (now - lastFeedUpdate >= FEED_RATE) {
-    lastFeedUpdate = now;
-    addFeedItem(platform, lat, lng);
+    if (now - lastFeedUpdate >= FEED_RATE) {
+      lastFeedUpdate = now;
+      addFeedItem(platform, lat, lng);
+    }
+  } catch (err) {
+    console.error('[Sentry Live] Failed to parse event:', err);
   }
 };
 
@@ -399,14 +427,14 @@ function animate() {
   if (ufoState !== 'hidden') {
     const bob = Math.sin(now * 0.0004) * 0.05;
     ufo.position.copy(ufoHoverPos).addScaledVector(ufoHoverPos.clone().normalize(), bob);
+    
+    // Rotate sprite so the tractor beam aims at the globe center
+    _ufoNDC.copy(ufo.position).project(camera);
+    _globeNDC.set(0, 0, 0).project(camera);
+    const dx = _globeNDC.x - _ufoNDC.x;
+    const dy = _globeNDC.y - _ufoNDC.y;
+    ufoMat.rotation = Math.atan2(dx, -dy);
   }
-
-  // Rotate sprite so the tractor beam aims at the globe center
-  _ufoNDC.copy(ufo.position).project(camera);
-  _globeNDC.set(0, 0, 0).project(camera);
-  const dx = _globeNDC.x - _ufoNDC.x;
-  const dy = _globeNDC.y - _ufoNDC.y;
-  ufoMat.rotation = Math.atan2(dx, -dy);
 
   // ── Markers ─────────────────────────────────────────────────
   for (let i = markers.length - 1; i >= 0; i--) {
