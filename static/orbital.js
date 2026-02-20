@@ -319,23 +319,35 @@ function addFeedItem(platform, lat, lng) {
 const source = new EventSource('/stream');
 
 source.onmessage = (e) => {
-  const [lat, lng, , platform] = JSON.parse(e.data);
-  const now = Date.now();
-
-  totalEvents++;
-  eventTimestamps.push(now);
-
-  if (now - lastDisplayTime >= DISPLAY_RATE) {
-    lastDisplayTime = now;
-    addMarker(lat, lng, platform);
-    if (platform === 'error') {
-      recordError(lat, lng);
+  try {
+    const [lat, lng, , platform] = JSON.parse(e.data);
+    
+    if (typeof lat !== 'number' || typeof lng !== 'number' || 
+        lat < -90 || lat > 90 || lng < -180 || lng > 180 ||
+        typeof platform !== 'string') {
+      console.warn('[Sentry Live] Invalid event data:', e.data);
+      return;
     }
-  }
+    
+    const now = Date.now();
 
-  if (now - lastFeedUpdate >= FEED_RATE) {
-    lastFeedUpdate = now;
-    addFeedItem(platform, lat, lng);
+    totalEvents++;
+    eventTimestamps.push(now);
+
+    if (now - lastDisplayTime >= DISPLAY_RATE) {
+      lastDisplayTime = now;
+      addMarker(lat, lng, platform);
+      if (platform === 'error') {
+        recordError(lat, lng);
+      }
+    }
+
+    if (now - lastFeedUpdate >= FEED_RATE) {
+      lastFeedUpdate = now;
+      addFeedItem(platform, lat, lng);
+    }
+  } catch (err) {
+    console.error('[Sentry Live] Failed to parse event:', err);
   }
 };
 
