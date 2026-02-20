@@ -1,33 +1,58 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title data-gettext>Sentry Live</title>
-    <link href="/static/orbital.css" rel="stylesheet"/>
-    <script
-      src="https://js.sentry-cdn.com/895a838587d91de1c3939a8f87904777.min.js"
-      crossorigin="anonymous"
-    ></script>
-  </head>
-  <body>
-    <div id="app">
-      <section id="geo">
-        <div id="map_container">
-          <div id="mapdata">
-            <img width="3600" height="1800" src="/static/map.png">
-          </div>
-          <canvas id="pings" width="3600" height="1800"></canvas>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sentry Live</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="/static/orbital.css" rel="stylesheet"/>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script
+    src="https://js.sentry-cdn.com/895a838587d91de1c3939a8f87904777.min.js"
+    crossorigin="anonymous"
+  ></script>
+</head>
+<body>
+  <div id="globe-container"></div>
+
+  <div id="ui">
+    <header>
+      <div class="brand">
+        <img src="/static/sentry-wordmark.svg" alt="Sentry" class="brand-wordmark"/>
+        <span class="brand-live"><span class="live-dot"></span>Live</span>
+      </div>
+      <div id="stats">
+        <div class="stat">
+          <span id="events-per-sec">0</span>
+          <label>events/s</label>
         </div>
-      </section>
-      <section id="footer">
-        <strong>&copy; {{.Year}} The Sentry Team</strong>
-      </section>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span id="total-events">0</span>
+          <label>total</label>
+        </div>
+      </div>
+    </header>
+
+    <div id="platform-legend"></div>
+
+    <div id="event-feed">
+      <div class="feed-title">Live Events</div>
+      <ul id="feed-list"></ul>
     </div>
-    <script src="/static/orbital.js"></script>
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        orbital.init(document.getElementById('map_container'));
-      });
-    </script>
-  </body>
+  </div>
+
+  <div id="footer">&copy; {{.Year}} Sentry</div>
+
+  <script type="module" src="/static/orbital.js"></script>
+</body>
 </html>
