@@ -411,14 +411,14 @@ function animate() {
   if (ufoState !== 'hidden') {
     const bob = Math.sin(now * 0.0004) * 0.05;
     ufo.position.copy(ufoHoverPos).addScaledVector(ufoHoverPos.clone().normalize(), bob);
+    
+    // Rotate sprite so the tractor beam aims at the globe center
+    _ufoNDC.copy(ufo.position).project(camera);
+    _globeNDC.set(0, 0, 0).project(camera);
+    const dx = _globeNDC.x - _ufoNDC.x;
+    const dy = _globeNDC.y - _ufoNDC.y;
+    ufoMat.rotation = Math.atan2(dx, -dy);
   }
-
-  // Rotate sprite so the tractor beam aims at the globe center
-  _ufoNDC.copy(ufo.position).project(camera);
-  _globeNDC.set(0, 0, 0).project(camera);
-  const dx = _globeNDC.x - _ufoNDC.x;
-  const dy = _globeNDC.y - _ufoNDC.y;
-  ufoMat.rotation = Math.atan2(dx, -dy);
 
   // ── Markers ─────────────────────────────────────────────────
   for (let i = markers.length - 1; i >= 0; i--) {
