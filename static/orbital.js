@@ -318,18 +318,15 @@ function addFeedItem(platform, lat, lng) {
 // ── SSE stream ────────────────────────────────────────────────────────────────
 
 let windowInFocus = !document.hidden;
-document.addEventListener('visibilitychange', () => {
-  windowInFocus = !document.hidden;
-  if (windowInFocus) {
-    // Trim any stale timestamps that accumulated while the tab was hidden
-    const cutoff = Date.now() - 5000;
-    while (eventTimestamps.length && eventTimestamps[0] < cutoff) eventTimestamps.shift();
-  }
-});
+let source = null;
 
-const source = new EventSource('/stream');
+function disconnectStream() {
+  if (!source) return;
+  source.close();
+  source = null;
+}
 
-source.onmessage = (e) => {
+function onStreamMessage(e) {
   try {
     const [lat, lng, , platform] = JSON.parse(e.data);
     
@@ -342,10 +339,7 @@ source.onmessage = (e) => {
     
     const now = Date.now();
 
-    // Don't advance counters, queue Three.js meshes, or grow eventTimestamps
-    // while the tab is
-    // backgrounded — rAF is paused so animate() won't run cleanup, and meshes
-    // would accumulate until the tab refocuses causing a freeze.
+    // Guard against any in-flight events during visibility transitions.
     if (!windowInFocus) return;
 
     totalEvents++;
@@ -366,9 +360,31 @@ source.onmessage = (e) => {
   } catch (err) {
     console.error('[Sentry Live] Failed to parse event:', err);
   }
-};
+}
 
-source.onerror = () => console.error('[Sentry Live] Stream disconnected');
+function connectStream() {
+  if (source || !windowInFocus) return;
+  source = new EventSource('/stream');
+  source.onmessage = onStreamMessage;
+  source.onerror = () => {
+    if (!windowInFocus) return;
+    console.error('[Sentry Live] Stream disconnected');
+  };
+}
+
+document.addEventListener('visibilitychange', () => {
+  windowInFocus = !document.hidden;
+  if (windowInFocus) {
+    // Trim any stale timestamps that accumulated while the tab was hidden.
+    const cutoff = Date.now() - 5000;
+    while (eventTimestamps.length && eventTimestamps[0] < cutoff) eventTimestamps.shift();
+    connectStream();
+    return;
+  }
+  disconnectStream();
+});
+
+connectStream();
 
 // ── Platform legend ───────────────────────────────────────────────────────────
 
