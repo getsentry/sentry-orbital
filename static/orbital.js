@@ -330,7 +330,7 @@ function onStreamMessage(e) {
   try {
     const [lat, lng, , platform] = JSON.parse(e.data);
     
-    if (typeof lat !== 'number' || typeof lng !== 'number' || 
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) ||
         lat < -90 || lat > 90 || lng < -180 || lng > 180 ||
         typeof platform !== 'string') {
       console.warn('[Sentry Live] Invalid event data:', e.data);
