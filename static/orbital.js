@@ -198,6 +198,7 @@ let ufoState       = 'hidden'; // 'hidden' | 'fadein' | 'hovering' | 'fadeout'
 let ufoStateStart  = 0;
 let ufoNextAppear  = Date.now() + UFO_CYCLE_MS;
 const ufoHoverPos  = new THREE.Vector3(UFO_ORBIT_RADIUS, 0.4, 0);
+const ufoHoverDir  = new THREE.Vector3().copy(ufoHoverPos).normalize();
 const _ufoNDC      = new THREE.Vector3();
 const _globeNDC    = new THREE.Vector3(0, 0, 0);
 
@@ -401,6 +402,7 @@ function animate() {
       // Position Seer above the most recent error, slightly offset from globe
       const dir = latLngToVec3(lastErrorLat, lastErrorLng).normalize();
       ufoHoverPos.copy(dir).multiplyScalar(UFO_ORBIT_RADIUS);
+      ufoHoverDir.copy(dir);
       ufo.position.copy(ufoHoverPos);
       ufoState      = 'fadein';
       ufoStateStart = now;
@@ -426,8 +428,8 @@ function animate() {
   // Gentle float when visible — very slow sine bob along the hover direction
   if (ufoState !== 'hidden') {
     const bob = Math.sin(now * 0.0004) * 0.05;
-    ufo.position.copy(ufoHoverPos).addScaledVector(ufoHoverPos.clone().normalize(), bob);
-    
+    ufo.position.copy(ufoHoverPos).addScaledVector(ufoHoverDir, bob);
+
     // Rotate sprite so the tractor beam aims at the globe center
     _ufoNDC.copy(ufo.position).project(camera);
     _globeNDC.set(0, 0, 0).project(camera);
