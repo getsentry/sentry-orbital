@@ -207,8 +207,10 @@ const _globeNDC    = new THREE.Vector3(0, 0, 0);
 ufoMat.opacity = 0;
 
 // Called with the latest error lat/lng so Seer appears above it
-let lastErrorLat = 20, lastErrorLng = 0;
+let hasErrorLocation = false;
+let lastErrorLat = 0, lastErrorLng = 0;
 function recordError(lat, lng) {
+  hasErrorLocation = true;
   lastErrorLat = lat;
   lastErrorLng = lng;
 }
@@ -283,7 +285,8 @@ function addMarker(lat, lng, platform) {
 
 let totalEvents     = 0;
 const eventTimestamps = [];
-let lastDisplayTime = 0;
+let lastDisplayTime = Date.now() - DISPLAY_RATE;
+let lastDisplayPlatform = null;
 let lastStatsUpdate = 0;
 let lastFeedUpdate  = 0;
 
@@ -354,12 +357,18 @@ function onStreamMessage(e) {
     totalEvents++;
     eventTimestamps.push(now);
 
-    if (now - lastDisplayTime >= DISPLAY_RATE) {
+    // Keep Seer's target anchored to the latest error even when markers are throttled.
+    if (platform === 'error') {
+      recordError(lat, lng);
+    }
+
+    const shouldDisplayMarker =
+      now - lastDisplayTime >= DISPLAY_RATE || platform !== lastDisplayPlatform;
+
+    if (shouldDisplayMarker) {
       lastDisplayTime = now;
+      lastDisplayPlatform = platform;
       addMarker(lat, lng, platform);
-      if (platform === 'error') {
-        recordError(lat, lng);
-      }
     }
 
     if (now - lastFeedUpdate >= FEED_RATE) {
@@ -431,7 +440,7 @@ function animate() {
 
   // ── Seer UFO state machine ───────────────────────────────────
   if (ufoState === 'hidden') {
-    if (now >= ufoNextAppear) {
+    if (hasErrorLocation && now >= ufoNextAppear) {
       // Position Seer above the most recent error, slightly offset from globe
       const dir = latLngToVec3(lastErrorLat, lastErrorLng).normalize();
       ufoHoverPos.copy(dir).multiplyScalar(UFO_ORBIT_RADIUS);
