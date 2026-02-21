@@ -47,6 +47,11 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
+  /* Fallback layers for browsers without color-mix() support */
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 10%,  rgba(54, 22, 107, 0.55) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 50% at 15% 85%,  rgba(77, 10, 85, 0.30) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 88% 75%,  rgba(117, 83, 255, 0.20) 0%, transparent 60%);
   background:
     radial-gradient(ellipse 90% 70% at 50% 10%,  color-mix(in srgb, var(--sentry-purple-dark) 55%, transparent)  0%, transparent 65%),
     radial-gradient(ellipse 50% 50% at 15% 85%,  color-mix(in srgb, var(--sentry-purple-deep) 30%, transparent)  0%, transparent 60%),
@@ -97,7 +102,9 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: rgba(24, 18, 37, 0.60);
   background: color-mix(in srgb, var(--sentry-bg) 60%, transparent);
+  border: 1px solid rgba(117, 83, 255, 0.15);
   border: 1px solid color-mix(in srgb, var(--sentry-violet) 15%, transparent);
   border-radius: 12px;
   padding: 12px 20px;
@@ -127,6 +134,7 @@ header {
   text-transform: uppercase;
   color: var(--sentry-violet-soft);
   padding-left: 12px;
+  border-left: 1px solid rgba(117, 83, 255, 0.30);
   border-left: 1px solid color-mix(in srgb, var(--sentry-violet) 30%, transparent);
 }
 
@@ -171,6 +179,7 @@ header {
 .stat label {
   font-size: 9px;
   font-weight: 500;
+  color: rgba(158, 134, 255, 0.40);
   color: color-mix(in srgb, var(--sentry-violet-soft) 40%, transparent);
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -181,6 +190,7 @@ header {
 .stat-divider {
   width: 1px;
   height: 28px;
+  background: rgba(117, 83, 255, 0.20);
   background: color-mix(in srgb, var(--sentry-violet) 20%, transparent);
 }
 
@@ -196,12 +206,15 @@ header {
   display: flex;
   align-items: center;
   gap: 6px;
+  background: rgba(24, 18, 37, 0.70);
   background: color-mix(in srgb, var(--sentry-bg) 70%, transparent);
+  border: 1px solid rgba(117, 83, 255, 0.15);
   border: 1px solid color-mix(in srgb, var(--sentry-violet) 15%, transparent);
   border-radius: 20px;
   padding: 4px 10px 4px 8px;
   font-size: 11px;
   font-weight: 400;
+  color: rgba(246, 246, 248, 0.45);
   color: color-mix(in srgb, var(--sentry-white) 45%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -221,7 +234,9 @@ header {
   bottom: 48px;
   right: 24px;
   width: 268px;
+  background: rgba(24, 18, 37, 0.75);
   background: color-mix(in srgb, var(--sentry-bg) 75%, transparent);
+  border: 1px solid rgba(117, 83, 255, 0.15);
   border: 1px solid color-mix(in srgb, var(--sentry-violet) 15%, transparent);
   border-radius: 12px;
   overflow: hidden;
@@ -236,7 +251,9 @@ header {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 2px;
+  color: rgba(158, 134, 255, 0.40);
   color: color-mix(in srgb, var(--sentry-violet-soft) 40%, transparent);
+  border-bottom: 1px solid rgba(117, 83, 255, 0.10);
   border-bottom: 1px solid color-mix(in srgb, var(--sentry-violet) 10%, transparent);
 }
 
@@ -250,6 +267,7 @@ header {
   align-items: center;
   gap: 8px;
   padding: 7px 14px;
+  border-bottom: 1px solid rgba(117, 83, 255, 0.07);
   border-bottom: 1px solid color-mix(in srgb, var(--sentry-violet) 7%, transparent);
   animation: slideIn 0.15s ease forwards;
 }
@@ -268,6 +286,7 @@ header {
 .feed-location {
   font-size: 11px;
   font-weight: 400;
+  color: rgba(158, 134, 255, 0.40);
   color: color-mix(in srgb, var(--sentry-violet-soft) 40%, transparent);
   flex: 1;
   text-align: right;
@@ -290,6 +309,7 @@ header {
   padding: 12px;
   font-size: 10px;
   font-weight: 400;
+  color: rgba(246, 246, 248, 0.10);
   color: color-mix(in srgb, var(--sentry-white) 10%, transparent);
   z-index: 10;
   pointer-events: none;
