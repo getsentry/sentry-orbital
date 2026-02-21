@@ -197,6 +197,7 @@ const UFO_FADE_MS   =  1200; // ms for fade in / fade out
 let ufoState       = 'hidden'; // 'hidden' | 'fadein' | 'hovering' | 'fadeout'
 let ufoStateStart  = 0;
 let ufoNextAppear  = Date.now() + UFO_CYCLE_MS;
+let ufoHiddenAt    = null;
 const ufoHoverPos  = new THREE.Vector3(UFO_ORBIT_RADIUS, 0.4, 0);
 const ufoHoverDir  = new THREE.Vector3().copy(ufoHoverPos).normalize();
 const _ufoNDC      = new THREE.Vector3();
@@ -210,6 +211,14 @@ let lastErrorLat = 20, lastErrorLng = 0;
 function recordError(lat, lng) {
   lastErrorLat = lat;
   lastErrorLng = lng;
+}
+
+function shiftUfoTimers(deltaMs) {
+  if (deltaMs <= 0) return;
+  ufoNextAppear += deltaMs;
+  if (ufoState !== 'hidden') {
+    ufoStateStart += deltaMs;
+  }
 }
 
 // ── Markers ───────────────────────────────────────────────────────────────────
@@ -373,14 +382,22 @@ function connectStream() {
 }
 
 document.addEventListener('visibilitychange', () => {
+  const now = Date.now();
   windowInFocus = !document.hidden;
   if (windowInFocus) {
+    if (ufoHiddenAt !== null) {
+      // Freeze UFO state timing while RAF is paused in background tabs.
+      shiftUfoTimers(now - ufoHiddenAt);
+      ufoHiddenAt = null;
+    }
+
     // Trim any stale timestamps that accumulated while the tab was hidden.
-    const cutoff = Date.now() - 5000;
+    const cutoff = now - 5000;
     while (eventTimestamps.length && eventTimestamps[0] < cutoff) eventTimestamps.shift();
     connectStream();
     return;
   }
+  ufoHiddenAt = now;
   disconnectStream();
 });
 
