@@ -341,13 +341,13 @@ source.onmessage = (e) => {
     
     const now = Date.now();
 
-    totalEvents++;
-
-    // Don't queue Three.js meshes or grow eventTimestamps while the tab is
+    // Don't advance counters, queue Three.js meshes, or grow eventTimestamps
+    // while the tab is
     // backgrounded — rAF is paused so animate() won't run cleanup, and meshes
     // would accumulate until the tab refocuses causing a freeze.
     if (!windowInFocus) return;
 
+    totalEvents++;
     eventTimestamps.push(now);
 
     if (now - lastDisplayTime >= DISPLAY_RATE) {
