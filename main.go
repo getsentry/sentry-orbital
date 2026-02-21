@@ -138,7 +138,7 @@ func runTest(port int) {
 		{10.5, -66.9},  // Caracas
 		{-0.2, -78.5},  // Quito
 		{-16.5, -68.2}, // La Paz
-		{-11.2, -17.9}, // Luanda surrounds
+		{-11.2, 17.9},  // Luanda surrounds
 		{32.1, 34.8},   // Tel Aviv
 		{33.9, 35.5},   // Beirut
 		{33.3, 44.4},   // Baghdad
