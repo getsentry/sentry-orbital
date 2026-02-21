@@ -389,7 +389,7 @@ connectStream();
 // ── Platform legend ───────────────────────────────────────────────────────────
 
 const legend = document.getElementById('platform-legend');
-[...Object.entries(PLATFORM_COLORS), ['other', SENTRY.violetSoft]].forEach(([name, hex]) => {
+Object.entries(PLATFORM_COLORS).forEach(([name, hex]) => {
   const color = '#' + hex.toString(16).padStart(6, '0');
   const el = document.createElement('div');
   el.className = 'legend-item';
