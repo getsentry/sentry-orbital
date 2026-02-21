@@ -43,6 +43,8 @@ const DISPLAY_RATE   = 80;
 const FEED_RATE      = 320;
 const STATS_INTERVAL = 1000;
 const MAX_FEED       = 14;
+const MARKER_SOFT_LIMIT = 100;
+const MARKER_HARD_LIMIT = 400;
 
 // Seer UFO
 const UFO_ORBIT_RADIUS = 2.1;  // hover height (globe radius = 1)
@@ -227,6 +229,34 @@ function shiftUfoTimers(deltaMs) {
 
 const markers = [];
 const Z_AXIS  = new THREE.Vector3(0, 0, 1);
+let activeMarkerEvents = 0;
+let droppedMarkerEvents = 0;
+
+function shouldDropMarkerEvent() {
+  if (activeMarkerEvents >= MARKER_HARD_LIMIT) {
+    droppedMarkerEvents++;
+    return true;
+  }
+
+  if (activeMarkerEvents < MARKER_SOFT_LIMIT) {
+    return false;
+  }
+
+  const overload = activeMarkerEvents - MARKER_SOFT_LIMIT;
+  const range = MARKER_HARD_LIMIT - MARKER_SOFT_LIMIT;
+  const normalizedLoad = overload / range;
+  const dropProbability = Math.pow(normalizedLoad, 1.5) * 0.95;
+
+  if (Math.random() < dropProbability) {
+    droppedMarkerEvents++;
+    if (droppedMarkerEvents % 100 === 0) {
+      console.warn(`[Sentry Live] Marker throttle: ${activeMarkerEvents} active, dropped ${droppedMarkerEvents} events`);
+    }
+    return true;
+  }
+
+  return false;
+}
 
 function addMarker(lat, lng, platform) {
   const color  = new THREE.Color(PLATFORM_COLORS[platform] ?? SENTRY.violetSoft);
@@ -279,6 +309,7 @@ function addMarker(lat, lng, platform) {
     maxScale:  1,
     isDot:     true,
   });
+  activeMarkerEvents++;
 }
 
 // ── Stats & feed ──────────────────────────────────────────────────────────────
@@ -286,7 +317,6 @@ function addMarker(lat, lng, platform) {
 let totalEvents     = 0;
 const eventTimestamps = [];
 let lastDisplayTime = Date.now() - DISPLAY_RATE;
-let lastDisplayPlatform = null;
 let lastStatsUpdate = 0;
 let lastFeedUpdate  = 0;
 
@@ -362,13 +392,11 @@ function onStreamMessage(e) {
       recordError(lat, lng);
     }
 
-    const shouldDisplayMarker =
-      now - lastDisplayTime >= DISPLAY_RATE || platform !== lastDisplayPlatform;
-
-    if (shouldDisplayMarker) {
+    if (now - lastDisplayTime >= DISPLAY_RATE) {
       lastDisplayTime = now;
-      lastDisplayPlatform = platform;
-      addMarker(lat, lng, platform);
+      if (!shouldDropMarkerEvent()) {
+        addMarker(lat, lng, platform);
+      }
     }
 
     if (now - lastFeedUpdate >= FEED_RATE) {
@@ -491,6 +519,9 @@ function animate() {
       scene.remove(m.mesh);
       m.mesh.geometry.dispose();
       m.mesh.material.dispose();
+      if (m.isDot) {
+        activeMarkerEvents = Math.max(activeMarkerEvents - 1, 0);
+      }
       markers.splice(i, 1);
       continue;
     }
