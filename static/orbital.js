@@ -419,7 +419,11 @@ Object.entries(PLATFORM_COLORS).forEach(([name, hex]) => {
   const color = '#' + hex.toString(16).padStart(6, '0');
   const el = document.createElement('div');
   el.className = 'legend-item';
-  el.innerHTML = `<span class="dot" style="background:${color}"></span>${name}`;
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  dot.style.background = color;
+  el.appendChild(dot);
+  el.appendChild(document.createTextNode(name));
   legend.appendChild(el);
 });
 
