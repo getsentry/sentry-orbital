@@ -28,14 +28,31 @@ const SENTRY = {
   white:        0xf6f6f8,
 };
 
-const PLATFORM_COLORS = {
-  error:       SENTRY.pink,        // #FF45A8 — most urgent
-  span:        SENTRY.cyan,        // #3EDCFF — distributed tracing
-  crash:       SENTRY.orangeLight, // #FF9838 — critical
-  replay:      SENTRY.violetSoft,  // #9E86FF — session recording
-  cron:        SENTRY.green,       // #92DD00 — scheduled jobs
-  profile:     SENTRY.blue,        // #226DFC — deep diagnostics
-};
+// All brand colors except the background (#181225) — one is picked at random per event.
+const BRAND_COLORS = [
+  SENTRY.purpleDark,
+  SENTRY.purpleMid,
+  SENTRY.purpleDeep,
+  SENTRY.purpleBright,
+  SENTRY.purpleNavy,
+  SENTRY.violet,
+  SENTRY.violetSoft,
+  SENTRY.pink,
+  SENTRY.pinkLight,
+  SENTRY.orange,
+  SENTRY.orangeLight,
+  SENTRY.yellowGold,
+  SENTRY.yellow,
+  SENTRY.green,
+  SENTRY.greenLight,
+  SENTRY.blue,
+  SENTRY.cyan,
+  SENTRY.white,
+];
+
+function randomBrandColor() {
+  return BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)];
+}
 
 const RING_DURATION  = 2200;
 const DOT_DURATION   = 14000;
@@ -258,8 +275,8 @@ function shouldDropMarkerEvent() {
   return false;
 }
 
-function addMarker(lat, lng, platform) {
-  const color  = new THREE.Color(PLATFORM_COLORS[platform] ?? SENTRY.violetSoft);
+function addMarker(lat, lng) {
+  const color  = new THREE.Color(randomBrandColor());
   const pos    = latLngToVec3(lat, lng, GLOBE_RADIUS + 0.005);
   const normal = pos.clone().normalize();
   const quat   = new THREE.Quaternion().setFromUnitVectors(Z_AXIS, normal);
@@ -331,7 +348,7 @@ function getRate() {
 }
 
 function addFeedItem(platform, lat, lng) {
-  const color  = '#' + (PLATFORM_COLORS[platform] ?? SENTRY.violetSoft).toString(16).padStart(6, '0');
+  const color  = '#' + randomBrandColor().toString(16).padStart(6, '0');
   const latStr = `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'}`;
   const lngStr = `${Math.abs(lng).toFixed(1)}°${lng >= 0 ? 'E' : 'W'}`;
   
@@ -387,15 +404,13 @@ function onStreamMessage(e) {
     totalEvents++;
     eventTimestamps.push(now);
 
-    // Keep Seer's target anchored to the latest error even when markers are throttled.
-    if (platform === 'error') {
-      recordError(lat, lng);
-    }
+    // Keep Seer hovering over recent activity.
+    recordError(lat, lng);
 
     if (now - lastDisplayTime >= DISPLAY_RATE) {
       lastDisplayTime = now;
       if (!shouldDropMarkerEvent()) {
-        addMarker(lat, lng, platform);
+        addMarker(lat, lng);
       }
     }
 
@@ -439,21 +454,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 connectStream();
-
-// ── Platform legend ───────────────────────────────────────────────────────────
-
-const legend = document.getElementById('platform-legend');
-Object.entries(PLATFORM_COLORS).forEach(([name, hex]) => {
-  const color = '#' + hex.toString(16).padStart(6, '0');
-  const el = document.createElement('div');
-  el.className = 'legend-item';
-  const dot = document.createElement('span');
-  dot.className = 'dot';
-  dot.style.background = color;
-  el.appendChild(dot);
-  el.appendChild(document.createTextNode(name));
-  legend.appendChild(el);
-});
 
 // ── Resize ────────────────────────────────────────────────────────────────────
 

@@ -14,10 +14,11 @@ import (
 )
 
 var (
-	flagHost     = flag.String("host", "127.0.0.1", "listen addr")
-	flagHttpPort = flag.Int("http-port", 7000, "http port")
-	flagUdpPort  = flag.Int("udp-port", 5556, "udp port")
-	flagTest     = flag.Bool("test", false, "send test events")
+	flagHost       = flag.String("host", "127.0.0.1", "listen addr")
+	flagHttpPort   = flag.Int("http-port", 7000, "http port")
+	flagUdpPort    = flag.Int("udp-port", 5556, "udp port")
+	flagTest       = flag.Bool("test", false, "send test events")
+	flagSampleRate = flag.Float64("sample-rate", 0.05, "fraction of UDP events to forward to SSE clients (0.0–1.0)")
 )
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -44,12 +45,23 @@ func runTest(port int) {
 		Port: port,
 	}
 	platforms := [...]string{
-		"error",
-		"span",
-		"crash",
-		"replay",
-		"cron",
-		"profile",
+		"javascript",
+		"javascript",
+		"javascript",
+		"node",
+		"node",
+		"node",
+		"python",
+		"python",
+		"java",
+		"java",
+		"cocoa",
+		"php",
+		"csharp",
+		"ruby",
+		"go",
+		"native",
+		"elixir",
 	}
 
 	// Real city coordinates — events only appear where people actually are
@@ -211,6 +223,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer conn.Close()
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	go func() {
 		b := make([]byte, 256)
 		for {
@@ -218,11 +231,13 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 				return
-			} else {
-				d := make([]byte, n)
-				copy(d, b)
-				es.SendEventMessage(d)
 			}
+			if rng.Float64() >= *flagSampleRate {
+				continue
+			}
+			d := make([]byte, n)
+			copy(d, b)
+			es.SendEventMessage(d)
 		}
 	}()
 
