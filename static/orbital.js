@@ -103,7 +103,7 @@ const loader = new THREE.TextureLoader();
 const globe = new THREE.Mesh(
   new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64),
   new THREE.MeshPhongMaterial({
-    map:               loader.load('/static/map.jpg'),
+    map:               loader.load('/static/map.webp'),
     specular:          new THREE.Color(0x331144),
     shininess:         18,
     emissive:          new THREE.Color(SENTRY.purpleDeep),
@@ -427,16 +427,11 @@ function onStreamMessage(e) {
 }
 
 function connectStream() {
-  if (source || !windowInFocus) return;
+  if (source) return;
   source = new EventSource('/stream');
   source.onmessage = onStreamMessage;
-  source.onerror = () => {
-    source.close();
-    source = null;
-    if (!windowInFocus) return;
-    console.error('[Sentry Live] Stream disconnected, reconnecting in 3s');
-    setTimeout(connectStream, 3000);
-  };
+  // EventSource auto-reconnects on error — no manual retry needed.
+  source.onerror = () => console.error('[Sentry Live] Stream error, auto-reconnecting…');
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -452,8 +447,6 @@ document.addEventListener('visibilitychange', () => {
     // All timestamps accumulated while hidden are stale — reset entirely.
     eventTimestamps.length = 0;
     eventTimestampsHead = 0;
-    // Reconnect if the connection dropped while hidden (server restart, etc.)
-    connectStream();
     return;
   }
   ufoHiddenAt = now;
