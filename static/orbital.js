@@ -103,7 +103,7 @@ const loader = new THREE.TextureLoader();
 const globe = new THREE.Mesh(
   new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64),
   new THREE.MeshPhongMaterial({
-    map:               loader.load('/static/map.png'),
+    map:               loader.load('/static/map.jpg'),
     specular:          new THREE.Color(0x331144),
     shininess:         18,
     emissive:          new THREE.Color(SENTRY.purpleDeep),
@@ -251,6 +251,10 @@ const CIRCLE_GEO = new THREE.CircleGeometry(0.007, 20);
 let activeMarkerEvents = 0;
 let droppedMarkerEvents = 0;
 
+// Client-side WebGL throttle — NOT additional SSE sampling.
+// The Go backend already samples at ~5% (--sample-rate), so each received
+// message represents ~20 real events. This gate only controls how many 3D
+// markers the GPU renders at once: all events still update the rate counter.
 function shouldDropMarkerEvent() {
   if (activeMarkerEvents >= MARKER_HARD_LIMIT) {
     droppedMarkerEvents++;
@@ -333,19 +337,19 @@ function addMarker(lat, lng) {
 
 // ── Stats & feed ──────────────────────────────────────────────────────────────
 
-let totalEvents        = 0;
+// eventTimestamps is a sliding window used by getRate() to compute events/sec.
+// A head pointer avoids O(n) shifts; periodic splices keep memory bounded.
 const eventTimestamps  = [];
 let eventTimestampsHead = 0;
-let lastDisplayTime = Date.now() - DISPLAY_RATE;
+let lastDisplayTime = performance.now() - DISPLAY_RATE;
 let lastStatsUpdate = 0;
 let lastFeedUpdate  = 0;
 
 const elRate   = document.getElementById('events-per-sec');
-const elTotal  = document.getElementById('total-events');
 const feedList = document.getElementById('feed-list');
 
 function getRate() {
-  const cutoff = Date.now() - 5000;
+  const cutoff = performance.now() - 5000;
   while (eventTimestampsHead < eventTimestamps.length && eventTimestamps[eventTimestampsHead] < cutoff) {
     eventTimestampsHead++;
   }
@@ -388,47 +392,37 @@ function addFeedItem(platform, lat, lng) {
 let windowInFocus = !document.hidden;
 let source = null;
 
-function disconnectStream() {
-  if (!source) return;
-  source.close();
-  source = null;
-}
-
 function onStreamMessage(e) {
+  // Skip all processing while backgrounded — browsers may queue a burst of
+  // events when a throttled tab is foregrounded, which would freeze the UI.
+  if (!windowInFocus) return;
+
+  let parsed;
   try {
-    const [lat, lng, , platform] = JSON.parse(e.data);
-    
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) ||
-        lat < -90 || lat > 90 || lng < -180 || lng > 180 ||
-        typeof platform !== 'string') {
-      console.warn('[Sentry Live] Invalid event data:', e.data);
-      return;
+    parsed = JSON.parse(e.data);
+  } catch {
+    console.error('[Sentry Live] Failed to parse event:', e.data);
+    return;
+  }
+
+  const [lat, lng, , platform] = parsed;
+  const now = performance.now();
+
+  eventTimestamps.push(now);
+
+  // Keep Seer hovering over recent activity.
+  recordError(lat, lng);
+
+  if (now - lastDisplayTime >= DISPLAY_RATE) {
+    lastDisplayTime = now;
+    if (!shouldDropMarkerEvent()) {
+      addMarker(lat, lng);
     }
-    
-    const now = Date.now();
+  }
 
-    // Guard against any in-flight events during visibility transitions.
-    if (!windowInFocus) return;
-
-    totalEvents++;
-    eventTimestamps.push(now);
-
-    // Keep Seer hovering over recent activity.
-    recordError(lat, lng);
-
-    if (now - lastDisplayTime >= DISPLAY_RATE) {
-      lastDisplayTime = now;
-      if (!shouldDropMarkerEvent()) {
-        addMarker(lat, lng);
-      }
-    }
-
-    if (now - lastFeedUpdate >= FEED_RATE) {
-      lastFeedUpdate = now;
-      addFeedItem(platform, lat, lng);
-    }
-  } catch (err) {
-    console.error('[Sentry Live] Failed to parse event:', err);
+  if (now - lastFeedUpdate >= FEED_RATE) {
+    lastFeedUpdate = now;
+    addFeedItem(platform, lat, lng);
   }
 }
 
@@ -446,7 +440,7 @@ function connectStream() {
 }
 
 document.addEventListener('visibilitychange', () => {
-  const now = Date.now();
+  const now = performance.now();
   windowInFocus = !document.hidden;
   if (windowInFocus) {
     if (ufoHiddenAt !== null) {
@@ -458,14 +452,15 @@ document.addEventListener('visibilitychange', () => {
     // All timestamps accumulated while hidden are stale — reset entirely.
     eventTimestamps.length = 0;
     eventTimestampsHead = 0;
+    // Reconnect if the connection dropped while hidden (server restart, etc.)
     connectStream();
     return;
   }
   ufoHiddenAt = now;
-  disconnectStream();
+  // SSE connection stays open — browsers throttle background tabs naturally
+  // and the windowInFocus guard at the top of onStreamMessage prevents any
+  // processing or DOM work while hidden.
 });
-
-connectStream();
 
 // ── Resize ────────────────────────────────────────────────────────────────────
 
@@ -552,9 +547,8 @@ function animate() {
 
   // ── Stats ────────────────────────────────────────────────────
   if (now - lastStatsUpdate >= STATS_INTERVAL) {
-    lastStatsUpdate     = now;
-    elRate.textContent  = getRate();
-    elTotal.textContent = totalEvents.toLocaleString();
+    lastStatsUpdate    = now;
+    elRate.textContent = getRate();
   }
 
   controls.update();
@@ -562,3 +556,6 @@ function animate() {
 }
 
 animate();
+// Connect after the animation loop is running so any initial burst of events
+// is processed in a stable render state.
+connectStream();

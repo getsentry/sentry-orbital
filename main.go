@@ -44,6 +44,8 @@ func runTest(port int) {
 		IP:   net.ParseIP("127.0.0.1"),
 		Port: port,
 	}
+	// Platform weights reflect real-world Sentry SDK distribution.
+	// TODO: fetch dynamically from https://release-registry.services.sentry.io/sdks
 	platforms := [...]string{
 		"javascript",
 		"javascript",
