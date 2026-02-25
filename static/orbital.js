@@ -244,8 +244,10 @@ function shiftUfoTimers(deltaMs) {
 
 // ── Markers ───────────────────────────────────────────────────────────────────
 
-const markers = [];
-const Z_AXIS  = new THREE.Vector3(0, 0, 1);
+const markers    = [];
+const Z_AXIS     = new THREE.Vector3(0, 0, 1);
+const RING_GEO   = new THREE.RingGeometry(0.003, 0.012, 48);
+const CIRCLE_GEO = new THREE.CircleGeometry(0.007, 20);
 let activeMarkerEvents = 0;
 let droppedMarkerEvents = 0;
 
@@ -285,7 +287,7 @@ function addMarker(lat, lng) {
   // Three staggered expanding ring waves
   for (let w = 0; w < 3; w++) {
     const mesh = new THREE.Mesh(
-      new THREE.RingGeometry(0.003, 0.012, 48),
+      RING_GEO,
       new THREE.MeshBasicMaterial({
         color,
         side:        THREE.DoubleSide,
@@ -308,7 +310,7 @@ function addMarker(lat, lng) {
 
   // Persistent glowing dot
   const dot = new THREE.Mesh(
-    new THREE.CircleGeometry(0.007, 20),
+    CIRCLE_GEO,
     new THREE.MeshBasicMaterial({
       color,
       transparent: true,
@@ -331,8 +333,9 @@ function addMarker(lat, lng) {
 
 // ── Stats & feed ──────────────────────────────────────────────────────────────
 
-let totalEvents     = 0;
-const eventTimestamps = [];
+let totalEvents        = 0;
+const eventTimestamps  = [];
+let eventTimestampsHead = 0;
 let lastDisplayTime = Date.now() - DISPLAY_RATE;
 let lastStatsUpdate = 0;
 let lastFeedUpdate  = 0;
@@ -343,8 +346,14 @@ const feedList = document.getElementById('feed-list');
 
 function getRate() {
   const cutoff = Date.now() - 5000;
-  while (eventTimestamps.length && eventTimestamps[0] < cutoff) eventTimestamps.shift();
-  return (eventTimestamps.length / 5).toFixed(1);
+  while (eventTimestampsHead < eventTimestamps.length && eventTimestamps[eventTimestampsHead] < cutoff) {
+    eventTimestampsHead++;
+  }
+  if (eventTimestampsHead > 500) {
+    eventTimestamps.splice(0, eventTimestampsHead);
+    eventTimestampsHead = 0;
+  }
+  return ((eventTimestamps.length - eventTimestampsHead) / 5).toFixed(1);
 }
 
 function addFeedItem(platform, lat, lng) {
@@ -428,8 +437,11 @@ function connectStream() {
   source = new EventSource('/stream');
   source.onmessage = onStreamMessage;
   source.onerror = () => {
+    source.close();
+    source = null;
     if (!windowInFocus) return;
-    console.error('[Sentry Live] Stream disconnected');
+    console.error('[Sentry Live] Stream disconnected, reconnecting in 3s');
+    setTimeout(connectStream, 3000);
   };
 }
 
@@ -443,9 +455,9 @@ document.addEventListener('visibilitychange', () => {
       ufoHiddenAt = null;
     }
 
-    // Trim any stale timestamps that accumulated while the tab was hidden.
-    const cutoff = now - 5000;
-    while (eventTimestamps.length && eventTimestamps[0] < cutoff) eventTimestamps.shift();
+    // All timestamps accumulated while hidden are stale — reset entirely.
+    eventTimestamps.length = 0;
+    eventTimestampsHead = 0;
     connectStream();
     return;
   }
@@ -521,8 +533,7 @@ function animate() {
 
     if (progress >= 1) {
       scene.remove(m.mesh);
-      m.mesh.geometry.dispose();
-      m.mesh.material.dispose();
+      m.mesh.material.dispose(); // geometry is shared — do not dispose
       if (m.isDot) {
         activeMarkerEvents = Math.max(activeMarkerEvents - 1, 0);
       }
