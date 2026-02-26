@@ -406,7 +406,10 @@ function onStreamMessage(e) {
     return;
   }
 
-  const [lat, lng, , platform] = parsed;
+  const [lat, lng, ts, platform] = parsed;
+  // Drop events more than 5s old — guards against the browser replaying a burst
+  // of buffered SSE messages all at once when a throttled tab regains focus.
+  if (Date.now() - ts > 5000) return;
   const now = performance.now();
 
   eventTimestamps.push(now);
