@@ -457,12 +457,13 @@ function connectStream() {
 }
 
 document.addEventListener('visibilitychange', () => {
-  const now = performance.now();
   windowInFocus = !document.hidden;
   if (windowInFocus) {
     if (ufoHiddenAt !== null) {
       // Freeze UFO state timing while RAF is paused in background tabs.
-      shiftUfoTimers(now - ufoHiddenAt);
+      // Use Date.now() for both sides so the delta is in the same wall-clock
+      // domain as ufoNextAppear and ufoStateStart (which are Date.now()-based).
+      shiftUfoTimers(Date.now() - ufoHiddenAt);
       ufoHiddenAt = null;
     }
 
@@ -471,7 +472,7 @@ document.addEventListener('visibilitychange', () => {
     eventTimestampsHead = 0;
     return;
   }
-  ufoHiddenAt = now;
+  ufoHiddenAt = Date.now();
   // SSE connection stays open — browsers throttle background tabs naturally
   // and the windowInFocus guard at the top of onStreamMessage prevents any
   // processing or DOM work while hidden.
