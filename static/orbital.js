@@ -429,8 +429,8 @@ function onStreamMessage(e) {
   recordError(lat, lng);
 
   if (now - lastDisplayTime >= DISPLAY_RATE) {
-    lastDisplayTime = now;
     if (!shouldDropMarkerEvent()) {
+      lastDisplayTime = now;
       addMarker(lat, lng);
     }
   }
@@ -536,9 +536,17 @@ function animate() {
   }
 
   // ── Markers ─────────────────────────────────────────────────
-  for (let i = markers.length - 1; i >= 0; i--) {
+  // Use a write-pointer to compact expired markers in O(n) rather than
+  // splice(i,1) inside a loop which is O(n²) when many markers expire at once
+  // (e.g. after a long background period).
+  let write = 0;
+  for (let i = 0; i < markers.length; i++) {
     const m = markers[i];
-    if (now < m.startTime) continue;
+
+    if (now < m.startTime) {
+      markers[write++] = m;
+      continue;
+    }
 
     const progress = (now - m.startTime) / m.duration;
 
@@ -548,8 +556,7 @@ function animate() {
       if (m.isDot) {
         activeMarkerEvents = Math.max(activeMarkerEvents - 1, 0);
       }
-      markers.splice(i, 1);
-      continue;
+      continue; // drop from array
     }
 
     if (m.isDot) {
@@ -559,7 +566,9 @@ function animate() {
       m.mesh.scale.setScalar(ease * m.maxScale);
       m.mesh.material.opacity = (1 - progress) * 0.8;
     }
+    markers[write++] = m;
   }
+  markers.length = write;
 
   // ── Stats ────────────────────────────────────────────────────
   if (now - lastStatsUpdate >= STATS_INTERVAL) {
