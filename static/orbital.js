@@ -254,7 +254,7 @@ let droppedMarkerEvents = 0;
 // Client-side WebGL throttle — NOT additional SSE sampling.
 // The Go backend already samples at ~5% (--sample-rate), so each received
 // message represents ~20 real events. This gate only controls how many 3D
-// markers the GPU renders at once: all events still update the rate counter.
+// markers the GPU renders at once: all events still increment the sampled counter.
 function shouldDropMarkerEvent() {
   if (activeMarkerEvents >= MARKER_HARD_LIMIT) {
     droppedMarkerEvents++;
@@ -344,7 +344,7 @@ let lastFeedUpdate  = 0;
 let staleDrop = false;
 let totalSampled = 0;
 
-const elRate   = document.getElementById('events-per-sec');
+const elSampled = document.getElementById('total-sampled');
 const feedList = document.getElementById('feed-list');
 
 
@@ -556,7 +556,7 @@ function animate() {
   // ── Stats ────────────────────────────────────────────────────
   if (now - lastStatsUpdate >= STATS_INTERVAL) {
     lastStatsUpdate    = now;
-    elRate.textContent = totalSampled.toLocaleString();
+    elSampled.textContent = totalSampled.toLocaleString();
   }
 
   controls.update();
