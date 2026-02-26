@@ -418,8 +418,8 @@ function onStreamMessage(e) {
   recordError(lat, lng);
 
   if (now - lastDisplayTime >= DISPLAY_RATE) {
+    lastDisplayTime = now;
     if (!shouldDropMarkerEvent()) {
-      lastDisplayTime = now;
       addMarker(lat, lng);
     }
   }
