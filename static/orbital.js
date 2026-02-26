@@ -346,6 +346,7 @@ let lastDisplayTime = performance.now() - DISPLAY_RATE;
 let lastStatsUpdate = 0;
 let lastFeedUpdate  = 0;
 let staleDrop = false;
+let totalSampled = 0;
 
 const elRate   = document.getElementById('events-per-sec');
 const feedList = document.getElementById('feed-list');
@@ -424,6 +425,7 @@ function onStreamMessage(e) {
   const now = performance.now();
 
   eventTimestamps.push(now);
+  totalSampled++;
 
   // Keep Seer hovering over recent activity.
   recordError(lat, lng);
@@ -573,7 +575,7 @@ function animate() {
   // ── Stats ────────────────────────────────────────────────────
   if (now - lastStatsUpdate >= STATS_INTERVAL) {
     lastStatsUpdate    = now;
-    elRate.textContent = getRate();
+    elRate.textContent = totalSampled.toLocaleString();
   }
 
   controls.update();
