@@ -296,10 +296,11 @@ function addMarker(lat, lng) {
         color,
         side:        THREE.DoubleSide,
         transparent: true,
-        opacity:     1,
+        opacity:     0,  // start invisible; animate loop sets opacity on first frame
         depthWrite:  false,
       })
     );
+    mesh.scale.setScalar(0);  // start at scale 0 so delayed waves don't flash
     mesh.position.copy(pos);
     mesh.quaternion.copy(quat);
     scene.add(mesh);
