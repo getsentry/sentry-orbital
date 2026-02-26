@@ -338,10 +338,6 @@ function addMarker(lat, lng) {
 
 // ── Stats & feed ──────────────────────────────────────────────────────────────
 
-// eventTimestamps is a sliding window used by getRate() to compute events/sec.
-// A head pointer avoids O(n) shifts; periodic splices keep memory bounded.
-const eventTimestamps  = [];
-let eventTimestampsHead = 0;
 let lastDisplayTime = performance.now() - DISPLAY_RATE;
 let lastStatsUpdate = 0;
 let lastFeedUpdate  = 0;
@@ -351,17 +347,6 @@ let totalSampled = 0;
 const elRate   = document.getElementById('events-per-sec');
 const feedList = document.getElementById('feed-list');
 
-function getRate() {
-  const cutoff = performance.now() - 5000;
-  while (eventTimestampsHead < eventTimestamps.length && eventTimestamps[eventTimestampsHead] < cutoff) {
-    eventTimestampsHead++;
-  }
-  if (eventTimestampsHead > 500) {
-    eventTimestamps.splice(0, eventTimestampsHead);
-    eventTimestampsHead = 0;
-  }
-  return ((eventTimestamps.length - eventTimestampsHead) / 5).toFixed(1);
-}
 
 function addFeedItem(platform, lat, lng) {
   const color  = '#' + randomBrandColor().toString(16).padStart(6, '0');
@@ -424,7 +409,6 @@ function onStreamMessage(e) {
   staleDrop = false;
   const now = performance.now();
 
-  eventTimestamps.push(now);
   totalSampled++;
 
   // Keep Seer hovering over recent activity.
@@ -469,9 +453,6 @@ document.addEventListener('visibilitychange', () => {
       ufoHiddenAt = null;
     }
 
-    // All timestamps accumulated while hidden are stale — reset entirely.
-    eventTimestamps.length = 0;
-    eventTimestampsHead = 0;
     return;
   }
   ufoHiddenAt = Date.now();
