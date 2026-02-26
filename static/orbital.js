@@ -430,8 +430,15 @@ function connectStream() {
   if (source) return;
   source = new EventSource('/stream');
   source.onmessage = onStreamMessage;
-  // EventSource auto-reconnects on error — no manual retry needed.
-  source.onerror = () => console.error('[Sentry Live] Stream error, auto-reconnecting…');
+  source.onerror = () => {
+    // EventSource auto-reconnects on network errors (readyState stays CONNECTING).
+    // On HTTP errors it enters CLOSED state and won't retry — handle that case manually.
+    if (source.readyState === EventSource.CLOSED) {
+      source = null;
+      console.error('[Sentry Live] Stream closed (HTTP error), retrying in 3s…');
+      setTimeout(connectStream, 3000);
+    }
+  };
 }
 
 document.addEventListener('visibilitychange', () => {

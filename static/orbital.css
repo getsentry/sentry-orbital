@@ -187,14 +187,6 @@ header {
   display: block;
 }
 
-.stat-divider {
-  width: 1px;
-  height: 28px;
-  background: rgba(117, 83, 255, 0.20);
-  background: color-mix(in srgb, var(--sentry-violet) 20%, transparent);
-}
-
-
 .dot {
   width: 7px;
   height: 7px;
