@@ -345,6 +345,7 @@ let eventTimestampsHead = 0;
 let lastDisplayTime = performance.now() - DISPLAY_RATE;
 let lastStatsUpdate = 0;
 let lastFeedUpdate  = 0;
+let staleDrop = false;
 
 const elRate   = document.getElementById('events-per-sec');
 const feedList = document.getElementById('feed-list');
@@ -407,9 +408,19 @@ function onStreamMessage(e) {
   }
 
   const [lat, lng, ts, platform] = parsed;
-  // Drop events more than 5s old — guards against the browser replaying a burst
-  // of buffered SSE messages all at once when a throttled tab regains focus.
-  if (Date.now() - ts > 5000) return;
+  // Drop events whose timestamp is more than 5s away from now (either direction).
+  // Guards against the browser replaying a burst of buffered SSE messages when a
+  // throttled tab regains focus. Using Math.abs handles server/client clock skew
+  // in both directions — without it, a server clock lagging >5s silently empties
+  // the globe.
+  if (Math.abs(Date.now() - ts) > 5000) {
+    if (!staleDrop) {
+      staleDrop = true;
+      console.warn(`[Sentry Live] Dropping events: clock skew or stale burst detected (ts=${ts}, now=${Date.now()})`);
+    }
+    return;
+  }
+  staleDrop = false;
   const now = performance.now();
 
   eventTimestamps.push(now);
