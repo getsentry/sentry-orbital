@@ -1,154 +1,283 @@
-/* http://meyerweb.com/eric/tools/css/reset/
-   v2.0 | 20110126
-   License: none (public domain)
-*/
+/* ── Sentry brand palette ────────────────────────────────────── */
 
-html, body, div, span, applet, object, iframe,
-h1, h2, h3, h4, h5, h6, p, blockquote, pre,
-a, abbr, acronym, address, big, cite, code,
-del, dfn, em, img, ins, kbd, q, s, samp,
-small, strike, strong, sub, sup, tt, var,
-b, u, i, center,
-dl, dt, dd, ol, ul, li,
-fieldset, form, label, legend,
-table, caption, tbody, tfoot, thead, tr, th, td,
-article, aside, canvas, details, embed,
-figure, figcaption, footer, header, hgroup,
-menu, nav, output, ruby, section, summary,
-time, mark, audio, video {
-    margin: 0;
-    padding: 0;
-    border: 0;
-    font-size: 100%;
-    font: inherit;
-    vertical-align: baseline;
+:root {
+  --sentry-purple-dark:    #36166B;
+  --sentry-purple-mid:     #6E47AE;
+  --sentry-purple-deep:    #4D0A55;
+  --sentry-purple-bright:  #A737B4;
+  --sentry-purple-navy:    #4E2A9A;
+  --sentry-violet:         #7553FF;
+  --sentry-violet-soft:    #9E86FF;
+  --sentry-bg:             #181225;
+  --sentry-pink:           #FF45A8;
+  --sentry-pink-light:     #FF70BC;
+  --sentry-orange:         #EE8019;
+  --sentry-orange-light:   #FF9838;
+  --sentry-yellow-gold:    #FDB81B;
+  --sentry-yellow:         #FFD00E;
+  --sentry-green:          #92DD00;
+  --sentry-green-light:    #C0ED49;
+  --sentry-blue:           #226DFC;
+  --sentry-cyan:           #3EDCFF;
+  --sentry-white:          #F6F6F8;
 }
 
-/* HTML5 display-role reset for older browsers */
-article, aside, details, figcaption, figure,
-footer, header, hgroup, menu, nav, section {
-    display: block;
-}
-body {
-    line-height: 1;
-}
-ol, ul {
-    list-style: none;
-}
-blockquote, q {
-    quotes: none;
-}
-blockquote:before, blockquote:after,
-q:before, q:after {
-    content: '';
-    content: none;
-}
-table {
-    border-collapse: collapse;
-    border-spacing: 0;
-}
-/* end meyer reset */
+/* ── Reset ───────────────────────────────────────────────────── */
 
-
-/************************************/
-/*             TYPOGRAPHY           */
-/************************************/
-
-body, html {
-    background: black;
-    height: 100%;
-    width: 100%;
-    color: white;
-    overflow: hidden;
-    font-family: "Helvetica Neue", arial;
-    font-size: 13px;
-    background: #222;
-}
-#map_container {
-    overflow: hidden;
-    width: 100%;
-    height: 100%;
-    position: relative;
-}
-#geo {
-    position: absolute;
-    top: 0;
-    width: 100%;
-    background: inherit;
-}
-canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3600px;
-    height: 1800px;
-}
-#mapdata {
-    transform-origin: 0 0;
-    width: 3600px;
-    height: 1800px;
-    position: absolute;
-    top: 0;
-    left: 0;
-}
-#mapdata img {
-    width: 3600px;
-    height: 1800px;
-    overflow: hidden;
-    pointer-events: none;
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-#messages {
-    list-style: none;
-    margin: 0;
-    position: absolute;
-    bottom: 1em;
-    left: 1em;
-    width: 512px;
-    z-index: 20000;
+/* ── Base ────────────────────────────────────────────────────── */
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--sentry-bg);
+  font-family: 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--sentry-white);
+  -webkit-font-smoothing: antialiased;
 }
-.overlay {
-    position: absolute;
-    max-width: 500px;
-    overflow: hidden;
-    opacity: 0.9;
-    text-shadow: 0 0 20px #000;
-    font-size: 0.7em;
-    line-height: 10px;
-    height: 12px;
-    overflow: hidden;
+
+/* Sentry-style radial gradient blobs behind the globe */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  /* Fallback layers for browsers without color-mix() support */
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 10%,  rgba(54, 22, 107, 0.55) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 50% at 15% 85%,  rgba(77, 10, 85, 0.30) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 88% 75%,  rgba(117, 83, 255, 0.20) 0%, transparent 60%);
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 10%,  color-mix(in srgb, var(--sentry-purple-dark) 55%, transparent)  0%, transparent 65%),
+    radial-gradient(ellipse 50% 50% at 15% 85%,  color-mix(in srgb, var(--sentry-purple-deep) 30%, transparent)  0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 88% 75%,  color-mix(in srgb, var(--sentry-violet)      20%, transparent)  0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
 }
-.overlay strong {
-    font-weight: bold;
+
+/* Film grain texture — matches sentry.io homepage */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.035;
+  pointer-events: none;
+  z-index: 0;
 }
-.overlay .favicon {
-    width: 12px;
-    height: 12px;
-    margin-right: 4px;
-    float: left;
+
+/* ── Globe ───────────────────────────────────────────────────── */
+
+#globe-container {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
 }
-#rate {
-    background: #111;
-    opacity: 0.8;
-    color: #fff;
-    position: absolute;
-    right: 10px;
-    padding: 10px;
-    top: 10px;
-    text-align: right;
+
+#globe-container canvas {
+  display: block;
 }
+
+/* ── UI overlay ──────────────────────────────────────────────── */
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  z-index: 10;
+}
+
+/* ── Header — frosted glass nav like sentry.io ───────────────── */
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(24, 18, 37, 0.60);
+  background: color-mix(in srgb, var(--sentry-bg) 60%, transparent);
+  border: 1px solid rgba(117, 83, 255, 0.15);
+  border: 1px solid color-mix(in srgb, var(--sentry-violet) 15%, transparent);
+  border-radius: 12px;
+  padding: 12px 20px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-wordmark {
+  height: 20px;
+  width: auto;
+  display: block;
+}
+
+.brand-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--sentry-violet-soft);
+  padding-left: 12px;
+  border-left: 1px solid rgba(117, 83, 255, 0.30);
+  border-left: 1px solid color-mix(in srgb, var(--sentry-violet) 30%, transparent);
+}
+
+/* Pulsing green status dot */
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sentry-green);
+  box-shadow: 0 0 6px var(--sentry-green);
+  animation: livePulse 2.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1;   transform: scale(1);    }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* ── Stats panel ─────────────────────────────────────────────── */
+
+#stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stat {
+  text-align: right;
+}
+
+.stat span {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--sentry-violet-soft);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+.stat label {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(158, 134, 255, 0.40);
+  color: color-mix(in srgb, var(--sentry-violet-soft) 40%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-top: 2px;
+  display: block;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Event feed ──────────────────────────────────────────────── */
+
+#event-feed {
+  position: fixed;
+  bottom: 48px;
+  right: 24px;
+  width: 268px;
+  background: rgba(24, 18, 37, 0.75);
+  background: color-mix(in srgb, var(--sentry-bg) 75%, transparent);
+  border: 1px solid rgba(117, 83, 255, 0.15);
+  border: 1px solid color-mix(in srgb, var(--sentry-violet) 15%, transparent);
+  border-radius: 12px;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 10;
+}
+
+.feed-title {
+  padding: 10px 14px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(158, 134, 255, 0.40);
+  color: color-mix(in srgb, var(--sentry-violet-soft) 40%, transparent);
+  border-bottom: 1px solid rgba(117, 83, 255, 0.10);
+  border-bottom: 1px solid color-mix(in srgb, var(--sentry-violet) 10%, transparent);
+}
+
+#feed-list {
+  list-style: none;
+  overflow: hidden;
+}
+
+#feed-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-bottom: 1px solid rgba(117, 83, 255, 0.07);
+  border-bottom: 1px solid color-mix(in srgb, var(--sentry-violet) 7%, transparent);
+  animation: slideIn 0.15s ease forwards;
+}
+
+#feed-list li:last-child {
+  border-bottom: none;
+}
+
+.feed-platform {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sentry-white);
+  min-width: 72px;
+}
+
+.feed-location {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(158, 134, 255, 0.40);
+  color: color-mix(in srgb, var(--sentry-violet-soft) 40%, transparent);
+  flex: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(6px); }
+  to   { opacity: 1; transform: translateX(0);   }
+}
+
+/* ── Footer ──────────────────────────────────────────────────── */
+
 #footer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 10px;
-    text-align: right;
-    color: #fff;
-    font-size: 0.7em;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 12px;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(246, 246, 248, 0.10);
+  color: color-mix(in srgb, var(--sentry-white) 10%, transparent);
+  z-index: 10;
+  pointer-events: none;
 }
-#footer a {
-    color: #fff;
-}
-
-#login_as { display: none !important; }

@@ -1,2 +1,8 @@
+github.com/getsentry/sentry-go v0.43.0 h1:XbXLpFicpo8HmBDaInk7dum18G9KSLcjZiyUKS+hLW4=
+github.com/getsentry/sentry-go v0.43.0/go.mod h1:XDotiNZbgf5U8bPDUAfvcFmOnMQQceESxyKaObSssW0=
 github.com/mattrobenolt/go-eventsource v0.0.0-20191023040735-e9a1a938b7e4 h1:5BeaJhXbFZyeUrEvanTB6nh6mE6dCYfo/45zJ3gNc+M=
 github.com/mattrobenolt/go-eventsource v0.0.0-20191023040735-e9a1a938b7e4/go.mod h1:Mukr5bJvDevVXaBgUTN5w1MyzqQ1jltYA1yte0C0qdQ=
+golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
+golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
