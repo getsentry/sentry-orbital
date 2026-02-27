@@ -10,7 +10,7 @@ local pipedream_config = {
       git: 'git@github.com:getsentry/sentry-orbital.git',
       shallow_clone: true,
       branch: 'main',
-      destination: 'sentry-orbital',
+      destination: 'orbital',
     },
   },
 };
