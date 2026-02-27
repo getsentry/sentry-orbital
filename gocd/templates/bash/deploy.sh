@@ -9,5 +9,5 @@ k8s-deploy \
   --type="deployment" \
   --label-selector="service=orbital" \
   --container-name="orbital" \
-  --image="ghcr.io/getsentry/sentry-orbital:${GO_REVISION_ORBITAL}" \
+  --image="ghcr.io/getsentry/sentry-orbital:${GO_REVISION_ORBITAL_REPO}" \
   --wait-timeout-mins=5
