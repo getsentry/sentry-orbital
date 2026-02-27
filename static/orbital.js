@@ -273,6 +273,10 @@ function shouldDropMarkerEvent() {
   if (Math.random() < dropProbability) {
     droppedMarkerEvents++;
     if (droppedMarkerEvents % 100 === 0) {
+      Sentry.logger?.warn?.(`Marker throttle active`, {
+        activeMarkerEvents,
+        droppedMarkerEvents,
+      });
       console.warn(`[Sentry Live] Marker throttle: ${activeMarkerEvents} active, dropped ${droppedMarkerEvents} events`);
     }
     return true;
@@ -388,7 +392,8 @@ function onStreamMessage(e) {
   let parsed;
   try {
     parsed = JSON.parse(e.data);
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { extra: { raw: e.data } });
     console.error('[Sentry Live] Failed to parse event:', e.data);
     return;
   }
@@ -429,6 +434,7 @@ function onStreamMessage(e) {
 
 function connectStream() {
   if (source) return;
+  Sentry.addBreadcrumb({ category: 'sse', message: 'connecting to /stream', level: 'info' });
   source = new EventSource('/stream');
   source.onmessage = onStreamMessage;
   source.onerror = () => {
@@ -436,6 +442,7 @@ function connectStream() {
     // On HTTP errors it enters CLOSED state and won't retry — handle that case manually.
     if (source.readyState === EventSource.CLOSED) {
       source = null;
+      Sentry.addBreadcrumb({ category: 'sse', message: 'stream closed (HTTP error), retrying in 3s', level: 'warning' });
       console.error('[Sentry Live] Stream closed (HTTP error), retrying in 3s…');
       setTimeout(connectStream, 3000);
     }

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"time"
 
+	sentry "github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/mattrobenolt/go-eventsource"
 )
 
@@ -198,6 +200,16 @@ func init() {
 }
 
 func main() {
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              "https://da9a4372645d168eff259433fb2403c9@o1.ingest.us.sentry.io/4510957955514368",
+		EnableTracing:    true,
+		TracesSampleRate: 1.0,
+		SendDefaultPII:   true,
+	}); err != nil {
+		log.Fatalf("sentry.Init: %s", err)
+	}
+	defer sentry.Flush(2 * time.Second)
+
 	if *flagTest {
 		runTest(*flagUdpPort)
 		return
@@ -217,6 +229,8 @@ func main() {
 	mux.Handle("/static/", http.FileServer(http.Dir(".")))
 	mux.Handle("/stream", es)
 
+	sentryHandler := sentryhttp.New(sentryhttp.Options{Repanic: true})
+
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
 		IP:   net.ParseIP(*flagHost),
 		Port: *flagUdpPort,
@@ -231,6 +245,8 @@ func main() {
 		for {
 			n, _, err := conn.ReadFromUDP(b)
 			if err != nil {
+				sentry.CaptureException(err)
+				sentry.Flush(2 * time.Second)
 				log.Fatal(err)
 				return
 			}
@@ -243,5 +259,5 @@ func main() {
 		}
 	}()
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *flagHost, *flagHttpPort), mux))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *flagHost, *flagHttpPort), sentryHandler.Handle(mux)))
 }

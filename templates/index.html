@@ -20,9 +20,18 @@
   }
   </script>
   <script
-    src="https://js.sentry-cdn.com/895a838587d91de1c3939a8f87904777.min.js"
+    src="https://js.sentry-cdn.com/e1b0f6fd25fcf288cefdfe0ad4d9fc4b.min.js"
     crossorigin="anonymous"
   ></script>
+  <script>
+    Sentry.onLoad(function() {
+      Sentry.init({
+        dsn: "https://e1b0f6fd25fcf288cefdfe0ad4d9fc4b@o1.ingest.us.sentry.io/4510957952892928",
+        tracesSampleRate: 1.0,
+        _experiments: { enableLogs: true },
+      });
+    });
+  </script>
 </head>
 <body>
   <div id="globe-container"></div>
