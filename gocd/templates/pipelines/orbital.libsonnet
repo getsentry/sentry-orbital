@@ -10,7 +10,7 @@ function(region) {
     orbital_repo: {
       git: 'git@github.com:getsentry/sentry-orbital.git',
       shallow_clone: true,
-      branch: 'main',
+      branch: 'master',
       destination: 'sentry-orbital',
     },
   },
