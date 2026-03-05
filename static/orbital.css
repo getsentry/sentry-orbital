@@ -81,6 +81,7 @@ body::after {
 
 #globe-container canvas {
   display: block;
+  touch-action: none; /* let OrbitControls own all touch gestures */
 }
 
 /* ── UI overlay ──────────────────────────────────────────────── */
@@ -213,6 +214,16 @@ header {
 }
 
 .feed-title {
+  /* button reset */
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(117, 83, 255, 0.10);
+  border-bottom: 1px solid color-mix(in srgb, var(--sentry-violet) 10%, transparent);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  /* layout & type */
   padding: 10px 14px;
   font-size: 9px;
   font-weight: 600;
@@ -220,13 +231,17 @@ header {
   letter-spacing: 2px;
   color: rgba(158, 134, 255, 0.40);
   color: color-mix(in srgb, var(--sentry-violet-soft) 40%, transparent);
-  border-bottom: 1px solid rgba(117, 83, 255, 0.10);
-  border-bottom: 1px solid color-mix(in srgb, var(--sentry-violet) 10%, transparent);
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
   user-select: none;
+}
+
+.feed-title:focus-visible {
+  outline: 2px solid var(--sentry-violet);
+  outline-offset: -2px;
+  border-radius: 4px;
 }
 
 .feed-chevron {
@@ -323,6 +338,30 @@ header {
   12%  { opacity: 1; transform: translateX(-50%) translateY(0);   }
   72%  { opacity: 1; transform: translateX(-50%) translateY(0);   }
   100% { opacity: 0; transform: translateX(-50%) translateY(-4px);}
+}
+
+/* ── Reduced motion ──────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  #interaction-hint {
+    animation: none;
+    opacity: 1;
+    transition: opacity 0.15s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .live-dot {
+    animation: none;
+    opacity: 1;
+  }
+
+  .feed-chevron {
+    transition: none;
+  }
 }
 
 /* ── Footer ──────────────────────────────────────────────────── */
