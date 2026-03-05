@@ -81,8 +81,9 @@ const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   45, window.innerWidth / window.innerHeight, 0.1, 1000
 );
-camera.position.z = window.innerWidth <= 600 ? 8.0 : 5.6;
-camera.position.y = window.innerWidth <= 600 ? -0.65 : 0;
+const mobileQuery = window.matchMedia('(max-width: 600px)');
+camera.position.z = mobileQuery.matches ? 8.0 : 5.6;
+camera.position.y = mobileQuery.matches ? -0.65 : 0;
 
 // ── Stars ────────────────────────────────────────────────────────────────────
 
@@ -472,7 +473,7 @@ document.addEventListener('visibilitychange', () => {
 // ── Resize ────────────────────────────────────────────────────────────────────
 
 window.addEventListener('resize', () => {
-  const mobile = window.innerWidth <= 600;
+  const mobile = mobileQuery.matches;
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
