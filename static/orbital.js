@@ -423,6 +423,10 @@ function onStreamMessage(e) {
     return;
   }
 
+  // Server sends periodic heartbeat pings ({}) to keep the connection alive
+  // and prevent the watchdog from firing during quiet traffic periods.
+  if (!Array.isArray(parsed)) return;
+
   const [lat, lng, ts, platform] = parsed;
   // Drop events that are too old — guards against the browser replaying a burst
   // of buffered SSE messages when a throttled tab regains focus.
@@ -507,7 +511,11 @@ function onPageHidden() {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) onPageHidden(); else onPageVisible();
 });
-window.addEventListener('pageshow', onPageVisible);
+// Guard against pageshow firing on initial load in a background tab.
+// `pageshow` fires for all page loads (not just bfcache restorations), so
+// blindly calling onPageVisible() here would override the document.hidden
+// initialisation and mark a background tab as focused.
+window.addEventListener('pageshow', () => { if (!document.hidden) onPageVisible(); });
 window.addEventListener('pagehide', onPageHidden);
 // `focus`/`blur` intentionally not used: `blur` fires when clicking browser
 // chrome (address bar, DevTools) and would incorrectly suppress events.
