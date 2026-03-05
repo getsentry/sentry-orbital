@@ -520,13 +520,38 @@ window.addEventListener('pagehide', onPageHidden);
 // `focus`/`blur` intentionally not used: `blur` fires when clicking browser
 // chrome (address bar, DevTools) and would incorrectly suppress events.
 
-// ── Resize ────────────────────────────────────────────────────────────────────
+// ── Resize / breakpoint ───────────────────────────────────────────────────────
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// Adjust camera distance and y-offset at the mobile/desktop breakpoint while
+// preserving the current orbital angle so autoRotate doesn't snap the globe.
+const CAMERA_DESKTOP = { dist: 2.8, y: 0.0 };
+const CAMERA_MOBILE  = { dist: 3.5, y: -0.15 };
+
+function applyCameraBreakpoint(cfg) {
+  // Decompose current position into azimuthal angle around Y axis.
+  const angle  = Math.atan2(camera.position.x, camera.position.z);
+  // Horizontal component of the new spherical position.
+  const hDist  = Math.sqrt(Math.max(0, cfg.dist * cfg.dist - cfg.y * cfg.y));
+  camera.position.set(
+    Math.sin(angle) * hDist,
+    cfg.y,
+    Math.cos(angle) * hDist,
+  );
+  controls.update();
+}
+
+const mobileQuery = window.matchMedia('(max-width: 768px)');
+mobileQuery.addEventListener('change', e => {
+  applyCameraBreakpoint(e.matches ? CAMERA_MOBILE : CAMERA_DESKTOP);
+});
+// Apply on load.
+applyCameraBreakpoint(mobileQuery.matches ? CAMERA_MOBILE : CAMERA_DESKTOP);
 
 // ── Animation loop ────────────────────────────────────────────────────────────
 
