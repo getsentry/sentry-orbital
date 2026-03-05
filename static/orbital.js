@@ -81,7 +81,8 @@ const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   45, window.innerWidth / window.innerHeight, 0.1, 1000
 );
-camera.position.z = 2.8;
+camera.position.z = window.innerWidth <= 600 ? 8.0 : 5.6;
+camera.position.y = window.innerWidth <= 600 ? -0.65 : 0;
 
 // ── Stars ────────────────────────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ controls.enableDamping   = true;
 controls.dampingFactor   = 0.05;
 controls.enablePan       = false;
 controls.minDistance     = 1.4;
-controls.maxDistance     = 6;
+controls.maxDistance     = 10;
 controls.autoRotate      = true;
 controls.autoRotateSpeed = 0.35;
 
@@ -471,9 +472,12 @@ document.addEventListener('visibilitychange', () => {
 // ── Resize ────────────────────────────────────────────────────────────────────
 
 window.addEventListener('resize', () => {
+  const mobile = window.innerWidth <= 600;
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.position.z = mobile ? 8.0 : 5.6;
+  camera.position.y = mobile ? -0.65 : 0;
 });
 
 // ── Animation loop ────────────────────────────────────────────────────────────
