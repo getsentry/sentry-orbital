@@ -399,15 +399,15 @@ function onStreamMessage(e) {
   }
 
   const [lat, lng, ts, platform] = parsed;
-  // Drop events whose timestamp is more than 5s away from now (either direction).
-  // Guards against the browser replaying a burst of buffered SSE messages when a
-  // throttled tab regains focus. Using Math.abs handles server/client clock skew
-  // in both directions — without it, a server clock lagging >5s silently empties
-  // the globe.
-  if (Math.abs(Date.now() - ts) > 5000) {
+  // Drop events that are too old — guards against the browser replaying a burst
+  // of buffered SSE messages when a throttled tab regains focus.
+  // We only check the past direction: events with a future timestamp are fine
+  // (the source server's clock may run slightly ahead of the client's clock),
+  // whereas stale buffered events always arrive with an old timestamp.
+  if (Date.now() - ts > 10000) {
     if (!staleDrop) {
       staleDrop = true;
-      console.warn(`[Sentry Live] Dropping events: clock skew or stale burst detected (ts=${ts}, now=${Date.now()})`);
+      console.warn(`[Sentry Live] Dropping stale events: buffered burst detected (ts=${ts}, now=${Date.now()}, age=${Date.now() - ts}ms)`);
     }
     return;
   }
