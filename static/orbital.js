@@ -473,11 +473,13 @@ document.addEventListener('visibilitychange', () => {
 // ── Resize ────────────────────────────────────────────────────────────────────
 
 window.addEventListener('resize', () => {
-  const mobile = mobileQuery.matches;
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  camera.position.set(0, mobile ? -0.65 : 0, mobile ? 8.0 : 5.6);
+});
+
+mobileQuery.addEventListener('change', e => {
+  camera.position.set(0, e.matches ? -0.65 : 0, e.matches ? 8.0 : 5.6);
   controls.update();
 });
 
