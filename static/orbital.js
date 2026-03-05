@@ -59,7 +59,8 @@ const DOT_DURATION   = 14000;
 const DISPLAY_RATE   = 80;
 const FEED_RATE      = 320;
 const STATS_INTERVAL = 1000;
-const MAX_FEED       = 14;
+const MAX_FEED_DESKTOP = 14;
+const MAX_FEED_MOBILE  = 4;
 const MARKER_SOFT_LIMIT = 100;
 const MARKER_HARD_LIMIT = 400;
 
@@ -81,9 +82,6 @@ const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   45, window.innerWidth / window.innerHeight, 0.1, 1000
 );
-const mobileQuery = window.matchMedia('(max-width: 600px)');
-camera.position.z = mobileQuery.matches ? 8.0 : 5.6;
-camera.position.y = mobileQuery.matches ? -0.65 : 0;
 
 // ── Stars ────────────────────────────────────────────────────────────────────
 
@@ -352,6 +350,11 @@ let totalSampled = 0;
 
 const elSampled = document.getElementById('total-sampled');
 const feedList = document.getElementById('feed-list');
+const eventFeed = document.getElementById('event-feed');
+
+eventFeed.querySelector('.feed-title').addEventListener('click', () => {
+  eventFeed.classList.toggle('collapsed');
+});
 
 
 function addFeedItem(platform, lat, lng) {
@@ -378,7 +381,8 @@ function addFeedItem(platform, lat, lng) {
   li.appendChild(locationSpan);
   
   feedList.insertBefore(li, feedList.firstChild);
-  while (feedList.children.length > MAX_FEED) feedList.removeChild(feedList.lastChild);
+  const maxFeed = window.innerWidth <= 600 ? MAX_FEED_MOBILE : MAX_FEED_DESKTOP;
+  while (feedList.children.length > maxFeed) feedList.removeChild(feedList.lastChild);
 }
 
 // ── SSE stream ────────────────────────────────────────────────────────────────
@@ -532,8 +536,8 @@ window.addEventListener('resize', () => {
 
 // Adjust camera distance and y-offset at the mobile/desktop breakpoint while
 // preserving the current orbital angle so autoRotate doesn't snap the globe.
-const CAMERA_DESKTOP = { dist: 2.8, y: 0.0 };
-const CAMERA_MOBILE  = { dist: 3.5, y: -0.15 };
+const CAMERA_DESKTOP = { dist: 5.5, y: 0.0 };
+const CAMERA_MOBILE  = { dist: 9.5, y: -0.8 };
 
 function applyCameraBreakpoint(cfg) {
   // Decompose current position into azimuthal angle around Y axis.
@@ -548,7 +552,7 @@ function applyCameraBreakpoint(cfg) {
   controls.update();
 }
 
-const mobileQuery = window.matchMedia('(max-width: 768px)');
+const mobileQuery = window.matchMedia('(max-width: 600px)');
 mobileQuery.addEventListener('change', e => {
   applyCameraBreakpoint(e.matches ? CAMERA_MOBILE : CAMERA_DESKTOP);
 });

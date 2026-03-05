@@ -222,6 +222,34 @@ header {
   color: color-mix(in srgb, var(--sentry-violet-soft) 40%, transparent);
   border-bottom: 1px solid rgba(117, 83, 255, 0.10);
   border-bottom: 1px solid color-mix(in srgb, var(--sentry-violet) 10%, transparent);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.feed-chevron {
+  font-size: 13px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+#event-feed {
+  pointer-events: auto;
+}
+
+#event-feed.collapsed .feed-chevron {
+  transform: rotate(-90deg);
+}
+
+#event-feed.collapsed #feed-list {
+  display: none;
+}
+
+#event-feed.collapsed .feed-title {
+  border-bottom: none;
 }
 
 #feed-list {
@@ -317,15 +345,15 @@ header {
   /* Move feed to a slim bar along the bottom edge */
   #event-feed {
     position: fixed;
-    bottom: 28px;
+    bottom: 20px;
     left: 12px;
     right: 12px;
     width: auto;
+    overflow: hidden;
     border-radius: 10px;
   }
 
   #feed-list {
-    max-height: 140px;
     overflow: hidden;
   }
 
