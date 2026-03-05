@@ -387,11 +387,10 @@ let source = null;
 // Watchdog: if no SSE message arrives for 30s, the connection is dead.
 // Safari silently fails EventSource reconnection (readyState stays CONNECTING
 // but never actually receives data). Force-close and reconnect.
-let lastMessageAt    = Date.now();
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 let reconnectWatchdog = null;
 
 function resetWatchdog() {
-  lastMessageAt = Date.now();
   clearTimeout(reconnectWatchdog);
   reconnectWatchdog = setTimeout(() => {
     console.warn('[Sentry Live] No events for 30s — forcing SSE reconnect');
@@ -466,10 +465,12 @@ function connectStream() {
   source.onerror = () => {
     // CLOSED: server rejected the connection (HTTP error) — EventSource won't
     // retry automatically, so we do it manually.
-    // CONNECTING: Safari sometimes fires onerror but never actually reconnects,
-    // leaving the source stuck. Force a clean reconnect in both cases.
+    // CONNECTING on Safari: Safari sometimes fires onerror but never actually
+    // reconnects, leaving the source stuck. Force a clean reconnect.
+    // On other browsers, CONNECTING means the browser is handling reconnection
+    // with native exponential backoff — don't interfere.
     if (source.readyState === EventSource.CLOSED ||
-        source.readyState === EventSource.CONNECTING) {
+        (source.readyState === EventSource.CONNECTING && isSafari)) {
       source.onmessage = null;
       source.onerror   = null;
       source.close();
