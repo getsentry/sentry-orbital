@@ -293,6 +293,38 @@ header {
   to   { opacity: 1; transform: translateX(0);   }
 }
 
+/* ── Interaction hint ────────────────────────────────────────── */
+
+#interaction-hint {
+  position: fixed;
+  top: 58%;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: rgba(158, 134, 255, 0.75);
+  background: rgba(24, 18, 37, 0.55);
+  border: 1px solid rgba(117, 83, 255, 0.20);
+  border-radius: 20px;
+  padding: 7px 18px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  animation: hintFade 5.5s ease 1s forwards;
+}
+
+@keyframes hintFade {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  12%  { opacity: 1; transform: translateX(-50%) translateY(0);   }
+  72%  { opacity: 1; transform: translateX(-50%) translateY(0);   }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-4px);}
+}
+
 /* ── Footer ──────────────────────────────────────────────────── */
 
 #footer {

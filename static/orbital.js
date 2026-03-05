@@ -197,7 +197,8 @@ function latLngToVec3(lat, lng, r = GLOBE_RADIUS) {
 // Seer is Sentry's AI debugger. It orbits the globe and flies to each new
 // error location, beaming down onto it.
 
-const ufoTex = loader.load('/static/seer.png');
+let ufoTexLoaded = false;
+const ufoTex = loader.load('/static/seer.png', () => { ufoTexLoaded = true; });
 const ufoMat = new THREE.SpriteMaterial({
   map:         ufoTex,
   transparent: true,
@@ -351,6 +352,12 @@ let totalSampled = 0;
 const elSampled = document.getElementById('total-sampled');
 const feedList = document.getElementById('feed-list');
 const eventFeed = document.getElementById('event-feed');
+
+// Swap hint text for touch devices
+const hintEl = document.getElementById('interaction-hint');
+if (hintEl && ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
+  hintEl.textContent = 'Drag to rotate · Pinch to zoom';
+}
 
 eventFeed.querySelector('.feed-title').addEventListener('click', () => {
   eventFeed.classList.toggle('collapsed');
@@ -568,7 +575,7 @@ function animate() {
 
   // ── Seer UFO state machine ───────────────────────────────────
   if (ufoState === 'hidden') {
-    if (hasErrorLocation && now >= ufoNextAppear) {
+    if (ufoTexLoaded && hasErrorLocation && now >= ufoNextAppear) {
       // Position Seer above the most recent error, slightly offset from globe
       const dir = latLngToVec3(lastErrorLat, lastErrorLng).normalize();
       ufoHoverPos.copy(dir).multiplyScalar(UFO_ORBIT_RADIUS);
