@@ -206,7 +206,6 @@ const ufoTex = loader.load(
   undefined,
   () => { console.warn('[Sentry Live] Failed to load Seer UFO texture — UFO disabled'); }
 );
-ufoTex.premultipliedAlpha = false;
 const ufoMat = new THREE.SpriteMaterial({
   map:         ufoTex,
   transparent: true,
