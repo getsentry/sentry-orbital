@@ -393,7 +393,7 @@ let reconnectWatchdog = null;
 function resetWatchdog() {
   clearTimeout(reconnectWatchdog);
   reconnectWatchdog = setTimeout(() => {
-    console.warn('[Sentry Live] No events for 30s — forcing SSE reconnect');
+    console.warn('[Sentry Live] No events for 5s — forcing SSE reconnect');
     Sentry.addBreadcrumb({ category: 'sse', message: 'watchdog triggered reconnect', level: 'warning' });
     if (source) {
       source.onmessage = null;
@@ -402,7 +402,7 @@ function resetWatchdog() {
       source = null;
     }
     connectStream();
-  }, 30000);
+  }, 5000);
 }
 
 function onStreamMessage(e) {
