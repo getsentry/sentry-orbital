@@ -240,6 +240,16 @@ func main() {
 	}
 	defer conn.Close()
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	// Heartbeat: send a ping every 3s so the client watchdog doesn't
+	// fire during legitimate low-traffic periods.
+	go func() {
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			es.SendEventMessage([]byte("{}"))
+		}
+	}()
+
 	go func() {
 		b := make([]byte, 256)
 		for {

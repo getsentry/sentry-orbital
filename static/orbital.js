@@ -384,7 +384,32 @@ function addFeedItem(platform, lat, lng) {
 let windowInFocus = !document.hidden;
 let source = null;
 
+// Watchdog: if no SSE message arrives for 30s, the connection is dead.
+// Safari silently fails EventSource reconnection (readyState stays CONNECTING
+// but never actually receives data). Force-close and reconnect.
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+let reconnectWatchdog = null;
+
+function resetWatchdog() {
+  clearTimeout(reconnectWatchdog);
+  reconnectWatchdog = setTimeout(() => {
+    console.warn('[Sentry Live] No events for 5s — forcing SSE reconnect');
+    Sentry.addBreadcrumb({ category: 'sse', message: 'watchdog triggered reconnect', level: 'warning' });
+    if (source) {
+      source.onmessage = null;
+      source.onerror   = null;
+      source.close();
+      source = null;
+    }
+    connectStream();
+  }, 5000);
+}
+
 function onStreamMessage(e) {
+  // Track message arrival before the focus guard so the watchdog knows the
+  // connection is alive even while the tab is hidden.
+  resetWatchdog();
+
   // Skip all processing while backgrounded — browsers may queue a burst of
   // events when a throttled tab is foregrounded, which would freeze the UI.
   if (!windowInFocus) return;
@@ -398,16 +423,20 @@ function onStreamMessage(e) {
     return;
   }
 
+  // Server sends periodic heartbeat pings ({}) to keep the connection alive
+  // and prevent the watchdog from firing during quiet traffic periods.
+  if (!Array.isArray(parsed)) return;
+
   const [lat, lng, ts, platform] = parsed;
-  // Drop events whose timestamp is more than 5s away from now (either direction).
-  // Guards against the browser replaying a burst of buffered SSE messages when a
-  // throttled tab regains focus. Using Math.abs handles server/client clock skew
-  // in both directions — without it, a server clock lagging >5s silently empties
-  // the globe.
-  if (Math.abs(Date.now() - ts) > 5000) {
+  // Drop events that are too old — guards against the browser replaying a burst
+  // of buffered SSE messages when a throttled tab regains focus.
+  // We only check the past direction: events with a future timestamp are fine
+  // (the source server's clock may run slightly ahead of the client's clock),
+  // whereas stale buffered events always arrive with an old timestamp.
+  if (Date.now() - ts > 10000) {
     if (!staleDrop) {
       staleDrop = true;
-      console.warn(`[Sentry Live] Dropping events: clock skew or stale burst detected (ts=${ts}, now=${Date.now()})`);
+      console.warn(`[Sentry Live] Dropping stale events: buffered burst detected (ts=${ts}, now=${Date.now()}, age=${Date.now() - ts}ms)`);
     }
     return;
   }
@@ -438,43 +467,91 @@ function connectStream() {
   source = new EventSource('/stream');
   source.onmessage = onStreamMessage;
   source.onerror = () => {
-    // EventSource auto-reconnects on network errors (readyState stays CONNECTING).
-    // On HTTP errors it enters CLOSED state and won't retry — handle that case manually.
-    if (source.readyState === EventSource.CLOSED) {
+    // CLOSED: server rejected the connection (HTTP error) — EventSource won't
+    // retry automatically, so we do it manually.
+    // CONNECTING on Safari: Safari sometimes fires onerror but never actually
+    // reconnects, leaving the source stuck. Force a clean reconnect.
+    // On other browsers, CONNECTING means the browser is handling reconnection
+    // with native exponential backoff — don't interfere.
+    if (source.readyState === EventSource.CLOSED ||
+        (source.readyState === EventSource.CONNECTING && isSafari)) {
+      source.onmessage = null;
+      source.onerror   = null;
+      source.close();
       source = null;
-      Sentry.addBreadcrumb({ category: 'sse', message: 'stream closed (HTTP error), retrying in 3s', level: 'warning' });
-      console.error('[Sentry Live] Stream closed (HTTP error), retrying in 3s…');
+      clearTimeout(reconnectWatchdog);
+      Sentry.addBreadcrumb({ category: 'sse', message: 'stream error, retrying in 3s', level: 'warning' });
+      console.error('[Sentry Live] Stream error, retrying in 3s…');
       setTimeout(connectStream, 3000);
     }
   };
+  resetWatchdog();
 }
 
-document.addEventListener('visibilitychange', () => {
-  windowInFocus = !document.hidden;
-  if (windowInFocus) {
-    if (ufoHiddenAt !== null) {
-      // Freeze UFO state timing while RAF is paused in background tabs.
-      // Use Date.now() for both sides so the delta is in the same wall-clock
-      // domain as ufoNextAppear and ufoStateStart (which are Date.now()-based).
-      shiftUfoTimers(Date.now() - ufoHiddenAt);
-      ufoHiddenAt = null;
-    }
-
-    return;
+function onPageVisible() {
+  windowInFocus = true;
+  if (ufoHiddenAt !== null) {
+    // Freeze UFO state timing while RAF is paused in background tabs.
+    // Use Date.now() for both sides so the delta is in the same wall-clock
+    // domain as ufoNextAppear and ufoStateStart (which are Date.now()-based).
+    shiftUfoTimers(Date.now() - ufoHiddenAt);
+    ufoHiddenAt = null;
   }
-  ufoHiddenAt = Date.now();
-  // SSE connection stays open — browsers throttle background tabs naturally
-  // and the windowInFocus guard at the top of onStreamMessage prevents any
-  // processing or DOM work while hidden.
-});
+}
 
-// ── Resize ────────────────────────────────────────────────────────────────────
+function onPageHidden() {
+  windowInFocus = false;
+  ufoHiddenAt = Date.now();
+}
+
+// `visibilitychange` is the standard, but Safari (especially iOS) sometimes
+// fails to fire it when returning from a switched app, leaving windowInFocus
+// stuck at false. `pageshow`/`pagehide` and `focus`/`blur` are more reliable
+// on Safari and serve as fallbacks.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) onPageHidden(); else onPageVisible();
+});
+// Guard against pageshow firing on initial load in a background tab.
+// `pageshow` fires for all page loads (not just bfcache restorations), so
+// blindly calling onPageVisible() here would override the document.hidden
+// initialisation and mark a background tab as focused.
+window.addEventListener('pageshow', () => { if (!document.hidden) onPageVisible(); });
+window.addEventListener('pagehide', onPageHidden);
+// `focus`/`blur` intentionally not used: `blur` fires when clicking browser
+// chrome (address bar, DevTools) and would incorrectly suppress events.
+
+// ── Resize / breakpoint ───────────────────────────────────────────────────────
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// Adjust camera distance and y-offset at the mobile/desktop breakpoint while
+// preserving the current orbital angle so autoRotate doesn't snap the globe.
+const CAMERA_DESKTOP = { dist: 2.8, y: 0.0 };
+const CAMERA_MOBILE  = { dist: 3.5, y: -0.15 };
+
+function applyCameraBreakpoint(cfg) {
+  // Decompose current position into azimuthal angle around Y axis.
+  const angle  = Math.atan2(camera.position.x, camera.position.z);
+  // Horizontal component of the new spherical position.
+  const hDist  = Math.sqrt(Math.max(0, cfg.dist * cfg.dist - cfg.y * cfg.y));
+  camera.position.set(
+    Math.sin(angle) * hDist,
+    cfg.y,
+    Math.cos(angle) * hDist,
+  );
+  controls.update();
+}
+
+const mobileQuery = window.matchMedia('(max-width: 768px)');
+mobileQuery.addEventListener('change', e => {
+  applyCameraBreakpoint(e.matches ? CAMERA_MOBILE : CAMERA_DESKTOP);
+});
+// Apply on load.
+applyCameraBreakpoint(mobileQuery.matches ? CAMERA_MOBILE : CAMERA_DESKTOP);
 
 // ── Animation loop ────────────────────────────────────────────────────────────
 
