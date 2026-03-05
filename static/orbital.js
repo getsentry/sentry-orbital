@@ -81,7 +81,9 @@ const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   45, window.innerWidth / window.innerHeight, 0.1, 1000
 );
-camera.position.z = 2.8;
+const mobileQuery = window.matchMedia('(max-width: 600px)');
+camera.position.z = mobileQuery.matches ? 8.0 : 5.6;
+camera.position.y = mobileQuery.matches ? -0.65 : 0;
 
 // ── Stars ────────────────────────────────────────────────────────────────────
 
@@ -168,7 +170,7 @@ controls.enableDamping   = true;
 controls.dampingFactor   = 0.05;
 controls.enablePan       = false;
 controls.minDistance     = 1.4;
-controls.maxDistance     = 6;
+controls.maxDistance     = 10;
 controls.autoRotate      = true;
 controls.autoRotateSpeed = 0.35;
 

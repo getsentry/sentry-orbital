@@ -281,3 +281,69 @@ header {
   z-index: 10;
   pointer-events: none;
 }
+
+/* ── Mobile responsive ───────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  #ui {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  header {
+    padding: 10px 14px;
+    border-radius: 10px;
+  }
+
+  .brand-wordmark {
+    height: 16px;
+  }
+
+  .brand-live {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    padding-left: 10px;
+    gap: 5px;
+  }
+
+  .stat span {
+    font-size: 16px;
+  }
+
+  .stat label {
+    font-size: 8px;
+  }
+
+  /* Move feed to a slim bar along the bottom edge */
+  #event-feed {
+    position: fixed;
+    bottom: 28px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    border-radius: 10px;
+  }
+
+  #feed-list {
+    max-height: 140px;
+    overflow: hidden;
+  }
+
+  #feed-list li {
+    padding: 6px 12px;
+  }
+
+  .feed-platform {
+    font-size: 11px;
+    min-width: 60px;
+  }
+
+  .feed-location {
+    font-size: 10px;
+  }
+
+  #footer {
+    font-size: 9px;
+    padding: 8px;
+  }
+}
