@@ -384,7 +384,33 @@ function addFeedItem(platform, lat, lng) {
 let windowInFocus = !document.hidden;
 let source = null;
 
+// Watchdog: if no SSE message arrives for 30s, the connection is dead.
+// Safari silently fails EventSource reconnection (readyState stays CONNECTING
+// but never actually receives data). Force-close and reconnect.
+let lastMessageAt    = Date.now();
+let reconnectWatchdog = null;
+
+function resetWatchdog() {
+  lastMessageAt = Date.now();
+  clearTimeout(reconnectWatchdog);
+  reconnectWatchdog = setTimeout(() => {
+    console.warn('[Sentry Live] No events for 30s — forcing SSE reconnect');
+    Sentry.addBreadcrumb({ category: 'sse', message: 'watchdog triggered reconnect', level: 'warning' });
+    if (source) {
+      source.onmessage = null;
+      source.onerror   = null;
+      source.close();
+      source = null;
+    }
+    connectStream();
+  }, 30000);
+}
+
 function onStreamMessage(e) {
+  // Track message arrival before the focus guard so the watchdog knows the
+  // connection is alive even while the tab is hidden.
+  resetWatchdog();
+
   // Skip all processing while backgrounded — browsers may queue a burst of
   // events when a throttled tab is foregrounded, which would freeze the UI.
   if (!windowInFocus) return;
@@ -438,35 +464,52 @@ function connectStream() {
   source = new EventSource('/stream');
   source.onmessage = onStreamMessage;
   source.onerror = () => {
-    // EventSource auto-reconnects on network errors (readyState stays CONNECTING).
-    // On HTTP errors it enters CLOSED state and won't retry — handle that case manually.
-    if (source.readyState === EventSource.CLOSED) {
+    // CLOSED: server rejected the connection (HTTP error) — EventSource won't
+    // retry automatically, so we do it manually.
+    // CONNECTING: Safari sometimes fires onerror but never actually reconnects,
+    // leaving the source stuck. Force a clean reconnect in both cases.
+    if (source.readyState === EventSource.CLOSED ||
+        source.readyState === EventSource.CONNECTING) {
+      source.onmessage = null;
+      source.onerror   = null;
+      source.close();
       source = null;
-      Sentry.addBreadcrumb({ category: 'sse', message: 'stream closed (HTTP error), retrying in 3s', level: 'warning' });
-      console.error('[Sentry Live] Stream closed (HTTP error), retrying in 3s…');
+      clearTimeout(reconnectWatchdog);
+      Sentry.addBreadcrumb({ category: 'sse', message: 'stream error, retrying in 3s', level: 'warning' });
+      console.error('[Sentry Live] Stream error, retrying in 3s…');
       setTimeout(connectStream, 3000);
     }
   };
+  resetWatchdog();
 }
 
-document.addEventListener('visibilitychange', () => {
-  windowInFocus = !document.hidden;
-  if (windowInFocus) {
-    if (ufoHiddenAt !== null) {
-      // Freeze UFO state timing while RAF is paused in background tabs.
-      // Use Date.now() for both sides so the delta is in the same wall-clock
-      // domain as ufoNextAppear and ufoStateStart (which are Date.now()-based).
-      shiftUfoTimers(Date.now() - ufoHiddenAt);
-      ufoHiddenAt = null;
-    }
-
-    return;
+function onPageVisible() {
+  windowInFocus = true;
+  if (ufoHiddenAt !== null) {
+    // Freeze UFO state timing while RAF is paused in background tabs.
+    // Use Date.now() for both sides so the delta is in the same wall-clock
+    // domain as ufoNextAppear and ufoStateStart (which are Date.now()-based).
+    shiftUfoTimers(Date.now() - ufoHiddenAt);
+    ufoHiddenAt = null;
   }
+}
+
+function onPageHidden() {
+  windowInFocus = false;
   ufoHiddenAt = Date.now();
-  // SSE connection stays open — browsers throttle background tabs naturally
-  // and the windowInFocus guard at the top of onStreamMessage prevents any
-  // processing or DOM work while hidden.
+}
+
+// `visibilitychange` is the standard, but Safari (especially iOS) sometimes
+// fails to fire it when returning from a switched app, leaving windowInFocus
+// stuck at false. `pageshow`/`pagehide` and `focus`/`blur` are more reliable
+// on Safari and serve as fallbacks.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) onPageHidden(); else onPageVisible();
 });
+window.addEventListener('pageshow', onPageVisible);
+window.addEventListener('pagehide', onPageHidden);
+// `focus`/`blur` intentionally not used: `blur` fires when clicking browser
+// chrome (address bar, DevTools) and would incorrectly suppress events.
 
 // ── Resize ────────────────────────────────────────────────────────────────────
 
