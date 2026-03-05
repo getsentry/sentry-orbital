@@ -478,6 +478,7 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.position.z = mobile ? 8.0 : 5.6;
   camera.position.y = mobile ? -0.65 : 0;
+  controls.update();
 });
 
 // ── Animation loop ────────────────────────────────────────────────────────────
