@@ -81,6 +81,7 @@ body::after {
 
 #globe-container canvas {
   display: block;
+  touch-action: none; /* let OrbitControls own all touch gestures */
 }
 
 /* ── UI overlay ──────────────────────────────────────────────── */
@@ -213,6 +214,16 @@ header {
 }
 
 .feed-title {
+  /* button reset */
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(117, 83, 255, 0.10);
+  border-bottom: 1px solid color-mix(in srgb, var(--sentry-violet) 10%, transparent);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  /* layout & type */
   padding: 10px 14px;
   font-size: 9px;
   font-weight: 600;
@@ -220,8 +231,40 @@ header {
   letter-spacing: 2px;
   color: rgba(158, 134, 255, 0.40);
   color: color-mix(in srgb, var(--sentry-violet-soft) 40%, transparent);
-  border-bottom: 1px solid rgba(117, 83, 255, 0.10);
-  border-bottom: 1px solid color-mix(in srgb, var(--sentry-violet) 10%, transparent);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.feed-title:focus-visible {
+  outline: 2px solid var(--sentry-violet);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.feed-chevron {
+  font-size: 13px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+#event-feed {
+  pointer-events: auto;
+}
+
+#event-feed.collapsed .feed-chevron {
+  transform: rotate(-90deg);
+}
+
+#event-feed.collapsed #feed-list {
+  display: none;
+}
+
+#event-feed.collapsed .feed-title {
+  border-bottom: none;
 }
 
 #feed-list {
@@ -263,6 +306,62 @@ header {
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(6px); }
   to   { opacity: 1; transform: translateX(0);   }
+}
+
+/* ── Interaction hint ────────────────────────────────────────── */
+
+#interaction-hint {
+  position: fixed;
+  top: 58%;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: rgba(158, 134, 255, 0.75);
+  background: rgba(24, 18, 37, 0.55);
+  border: 1px solid rgba(117, 83, 255, 0.20);
+  border-radius: 20px;
+  padding: 7px 18px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  animation: hintFade 5.5s ease 1s forwards;
+}
+
+@keyframes hintFade {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  12%  { opacity: 1; transform: translateX(-50%) translateY(0);   }
+  72%  { opacity: 1; transform: translateX(-50%) translateY(0);   }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-4px);}
+}
+
+/* ── Reduced motion ──────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  #interaction-hint {
+    animation: none;
+    opacity: 1;
+    transition: opacity 0.15s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .live-dot {
+    animation: none;
+    opacity: 1;
+  }
+
+  .feed-chevron {
+    transition: none;
+  }
 }
 
 /* ── Footer ──────────────────────────────────────────────────── */
@@ -317,15 +416,15 @@ header {
   /* Move feed to a slim bar along the bottom edge */
   #event-feed {
     position: fixed;
-    bottom: 28px;
+    bottom: 20px;
     left: 12px;
     right: 12px;
     width: auto;
+    overflow: hidden;
     border-radius: 10px;
   }
 
   #feed-list {
-    max-height: 140px;
     overflow: hidden;
   }
 

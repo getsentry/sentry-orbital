@@ -35,6 +35,7 @@
 </head>
 <body>
   <div id="globe-container"></div>
+  <div id="interaction-hint">Drag to rotate · Scroll to zoom</div>
 
   <div id="ui">
     <header>
@@ -51,7 +52,9 @@
     </header>
 
     <div id="event-feed">
-      <div class="feed-title">Live Events</div>
+      <button class="feed-title" aria-expanded="true" aria-controls="feed-list">
+        Live Events <span class="feed-chevron" aria-hidden="true">▾</span>
+      </button>
       <ul id="feed-list"></ul>
     </div>
   </div>

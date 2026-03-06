@@ -59,7 +59,10 @@ const DOT_DURATION   = 14000;
 const DISPLAY_RATE   = 80;
 const FEED_RATE      = 320;
 const STATS_INTERVAL = 1000;
-const MAX_FEED       = 14;
+const MAX_FEED_DESKTOP = 14;
+const MAX_FEED_MOBILE  = 4;
+// Keep in sync with @media (max-width: 600px) in orbital.css
+const MOBILE_BREAKPOINT = 600;
 const MARKER_SOFT_LIMIT = 100;
 const MARKER_HARD_LIMIT = 400;
 
@@ -81,9 +84,6 @@ const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   45, window.innerWidth / window.innerHeight, 0.1, 1000
 );
-const mobileQuery = window.matchMedia('(max-width: 600px)');
-camera.position.z = mobileQuery.matches ? 8.0 : 5.6;
-camera.position.y = mobileQuery.matches ? -0.65 : 0;
 
 // ── Stars ────────────────────────────────────────────────────────────────────
 
@@ -199,10 +199,17 @@ function latLngToVec3(lat, lng, r = GLOBE_RADIUS) {
 // Seer is Sentry's AI debugger. It orbits the globe and flies to each new
 // error location, beaming down onto it.
 
-const ufoTex = loader.load('/static/seer.png');
+let ufoTexLoaded = false;
+const ufoTex = loader.load(
+  '/static/seer.png',
+  () => { ufoTexLoaded = true; },
+  undefined,
+  () => { console.warn('[Sentry Live] Failed to load Seer UFO texture — UFO disabled'); }
+);
 const ufoMat = new THREE.SpriteMaterial({
   map:         ufoTex,
   transparent: true,
+  alphaTest:   0.01,
   depthWrite:  false,
 });
 const ufo = new THREE.Sprite(ufoMat);
@@ -351,7 +358,59 @@ let staleDrop = false;
 let totalSampled = 0;
 
 const elSampled = document.getElementById('total-sampled');
-const feedList = document.getElementById('feed-list');
+const feedList  = document.getElementById('feed-list');
+const eventFeed = document.getElementById('event-feed');
+
+// ── Feed toggle ───────────────────────────────────────────────
+const feedToggleBtn = eventFeed.querySelector('.feed-title');
+
+// Restore collapsed state from previous session visit
+if (sessionStorage.getItem('feedCollapsed') === '1') {
+  eventFeed.classList.add('collapsed');
+  feedToggleBtn.setAttribute('aria-expanded', 'false');
+}
+
+feedToggleBtn.addEventListener('click', () => {
+  const nowCollapsed = eventFeed.classList.toggle('collapsed');
+  feedToggleBtn.setAttribute('aria-expanded', String(!nowCollapsed));
+  sessionStorage.setItem('feedCollapsed', nowCollapsed ? '1' : '0');
+});
+
+// ── Interaction hint ──────────────────────────────────────────
+const hintEl = document.getElementById('interaction-hint');
+if (hintEl) {
+  if (sessionStorage.getItem('hintSeen') === '1') {
+    hintEl.hidden = true;
+  } else {
+    // Adapt text for touch devices
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      hintEl.textContent = 'Drag to rotate · Pinch to zoom';
+    }
+
+    // For reduced-motion users the CSS removes the animation; handle opacity manually
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) {
+      // Show static hint; dismiss on first interaction only
+      hintEl.style.opacity = '1';
+    }
+
+    const dismissHint = () => {
+      if (reducedMotion) {
+        hintEl.style.opacity = '0';
+      }
+      hintEl.hidden = true;
+      sessionStorage.setItem('hintSeen', '1');
+      ['pointerdown', 'wheel', 'touchstart'].forEach(t =>
+        window.removeEventListener(t, dismissHint));
+    };
+
+    ['pointerdown', 'wheel', 'touchstart'].forEach(t =>
+      window.addEventListener(t, dismissHint, { passive: true, once: true }));
+
+    // Also dismiss when the CSS animation naturally ends
+    hintEl.addEventListener('animationend', dismissHint, { once: true });
+  }
+}
 
 
 function addFeedItem(platform, lat, lng) {
@@ -378,7 +437,8 @@ function addFeedItem(platform, lat, lng) {
   li.appendChild(locationSpan);
   
   feedList.insertBefore(li, feedList.firstChild);
-  while (feedList.children.length > MAX_FEED) feedList.removeChild(feedList.lastChild);
+  const maxFeed = window.innerWidth <= MOBILE_BREAKPOINT ? MAX_FEED_MOBILE : MAX_FEED_DESKTOP;
+  while (feedList.children.length > maxFeed) feedList.removeChild(feedList.lastChild);
 }
 
 // ── SSE stream ────────────────────────────────────────────────────────────────
@@ -524,31 +584,40 @@ window.addEventListener('pagehide', onPageHidden);
 
 // ── Resize / breakpoint ───────────────────────────────────────────────────────
 
-window.addEventListener('resize', () => {
+function onResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+window.addEventListener('resize', onResize);
+// orientationchange fires before the viewport dimensions settle; a short
+// rAF-based delay ensures innerWidth/Height reflect the new orientation.
+window.addEventListener('orientationchange', () => {
+  requestAnimationFrame(() => { requestAnimationFrame(onResize); });
 });
 
 // Adjust camera distance and y-offset at the mobile/desktop breakpoint while
 // preserving the current orbital angle so autoRotate doesn't snap the globe.
-const CAMERA_DESKTOP = { dist: 2.8, y: 0.0 };
-const CAMERA_MOBILE  = { dist: 3.5, y: -0.15 };
+const CAMERA_DESKTOP = { dist: 5.5, y: 0.0,  minD: 1.4, maxD: 10 };
+const CAMERA_MOBILE  = { dist: 9.5, y: -0.8, minD: 4.0, maxD: 20 };
 
 function applyCameraBreakpoint(cfg) {
   // Decompose current position into azimuthal angle around Y axis.
-  const angle  = Math.atan2(camera.position.x, camera.position.z);
+  const angle = Math.atan2(camera.position.x, camera.position.z);
   // Horizontal component of the new spherical position.
-  const hDist  = Math.sqrt(Math.max(0, cfg.dist * cfg.dist - cfg.y * cfg.y));
+  const hDist = Math.sqrt(Math.max(0, cfg.dist * cfg.dist - cfg.y * cfg.y));
   camera.position.set(
     Math.sin(angle) * hDist,
     cfg.y,
     Math.cos(angle) * hDist,
   );
+  controls.minDistance = cfg.minD;
+  controls.maxDistance = cfg.maxD;
   controls.update();
 }
 
-const mobileQuery = window.matchMedia('(max-width: 768px)');
+const mobileQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
 mobileQuery.addEventListener('change', e => {
   applyCameraBreakpoint(e.matches ? CAMERA_MOBILE : CAMERA_DESKTOP);
 });
@@ -564,7 +633,7 @@ function animate() {
 
   // ── Seer UFO state machine ───────────────────────────────────
   if (ufoState === 'hidden') {
-    if (hasErrorLocation && now >= ufoNextAppear) {
+    if (ufoTexLoaded && hasErrorLocation && now >= ufoNextAppear) {
       // Position Seer above the most recent error, slightly offset from globe
       const dir = latLngToVec3(lastErrorLat, lastErrorLng).normalize();
       ufoHoverPos.copy(dir).multiplyScalar(UFO_ORBIT_RADIUS);
