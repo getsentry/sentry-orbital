@@ -480,7 +480,9 @@ function onStreamMessage(e) {
   try {
     parsed = JSON.parse(e.data);
   } catch (err) {
-    Sentry.captureException(err, { extra: { raw: e.data } });
+    // SSE frames can be mangled by some browsers (e.g. Safari merging adjacent
+    // frames), producing unparseable data. This is transient network noise —
+    // log it locally but don't capture to Sentry to avoid false-positive alerts.
     console.error('[Sentry Live] Failed to parse event:', e.data);
     return;
   }
