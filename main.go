@@ -204,7 +204,7 @@ func main() {
 		Dsn:              "https://da9a4372645d168eff259433fb2403c9@o1.ingest.us.sentry.io/4510957955514368",
 		EnableTracing:    true,
 		TracesSampleRate: 1.0,
-		SendDefaultPII:   true,
+		SendDefaultPII:   false,
 	}); err != nil {
 		log.Fatalf("sentry.Init: %s", err)
 	}
