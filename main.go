@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"html/template"
 	"log"
 	"math/rand"
 	"net"
@@ -22,15 +21,6 @@ var (
 	flagTest       = flag.Bool("test", false, "send test events")
 	flagSampleRate = flag.Float64("sample-rate", 0.05, "fraction of UDP events to forward to SSE clients (0.0–1.0)")
 )
-
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("./templates/index.html"))
-	tmpl.Execute(w, struct {
-		Year int
-	}{
-		Year: time.Now().Year(),
-	})
-}
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
@@ -224,10 +214,10 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", handleIndex)
 	mux.HandleFunc("/healthz", handleHealth)
-	mux.Handle("/static/", http.FileServer(http.Dir(".")))
 	mux.Handle("/stream", es)
+	// Serve the Vite-built frontend from static/
+	mux.Handle("/", http.FileServer(http.Dir("static")))
 
 	sentryHandler := sentryhttp.New(sentryhttp.Options{Repanic: true})
 

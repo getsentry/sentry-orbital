@@ -1,0 +1,253 @@
+@import "tailwindcss";
+
+:root {
+  --ink-1: #f4f2fa;
+  --ink-2: #c8c0dc;
+  --bg-1: #090711;
+  --bg-2: #1b1330;
+  --bg-3: #2d1e4f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+html {
+  background: #0b0815;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--ink-1);
+  background:
+    radial-gradient(circle at 50% 120%, rgb(61 41 107 / 56%) 0%, transparent 42%),
+    radial-gradient(circle at 16% 12%, rgb(83 52 153 / 28%) 0%, transparent 34%),
+    radial-gradient(circle at 88% 72%, rgb(38 119 157 / 24%) 0%, transparent 32%),
+    linear-gradient(180deg, #05030a 0%, #0b0815 45%, #130d26 100%);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  pointer-events: none;
+}
+
+body::before {
+  background-image:
+    radial-gradient(1px 1px at 8% 12%, rgb(255 255 255 / 0.9), transparent),
+    radial-gradient(1.2px 1.2px at 22% 34%, rgb(222 233 255 / 0.85), transparent),
+    radial-gradient(1px 1px at 39% 18%, rgb(255 255 255 / 0.8), transparent),
+    radial-gradient(1.1px 1.1px at 62% 27%, rgb(206 225 255 / 0.82), transparent),
+    radial-gradient(1px 1px at 78% 9%, rgb(255 255 255 / 0.86), transparent),
+    radial-gradient(1.4px 1.4px at 90% 35%, rgb(238 245 255 / 0.9), transparent),
+    radial-gradient(1px 1px at 14% 58%, rgb(231 240 255 / 0.82), transparent),
+    radial-gradient(1.2px 1.2px at 33% 69%, rgb(255 255 255 / 0.86), transparent),
+    radial-gradient(1px 1px at 52% 52%, rgb(220 233 255 / 0.8), transparent),
+    radial-gradient(1.3px 1.3px at 69% 64%, rgb(255 255 255 / 0.9), transparent),
+    radial-gradient(1px 1px at 85% 79%, rgb(216 230 255 / 0.78), transparent),
+    radial-gradient(1.2px 1.2px at 95% 57%, rgb(255 255 255 / 0.86), transparent);
+  opacity: 0.7;
+  animation: star-drift 120s linear infinite;
+}
+
+body::after {
+  background-image:
+    radial-gradient(1.6px 1.6px at 18% 22%, rgb(255 255 255 / 0.95), transparent),
+    radial-gradient(1.9px 1.9px at 48% 8%, rgb(210 230 255 / 0.92), transparent),
+    radial-gradient(1.7px 1.7px at 74% 29%, rgb(255 255 255 / 0.94), transparent),
+    radial-gradient(1.5px 1.5px at 28% 82%, rgb(220 236 255 / 0.9), transparent),
+    radial-gradient(1.8px 1.8px at 64% 68%, rgb(255 255 255 / 0.94), transparent),
+    radial-gradient(1.6px 1.6px at 92% 74%, rgb(214 231 255 / 0.9), transparent);
+  opacity: 0.55;
+  animation: star-twinkle 9s ease-in-out infinite alternate;
+}
+
+.app-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.orbital-glow {
+  position: absolute;
+  inset: 10% 20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(158 117 255 / 20%) 0%, rgb(72 212 255 / 6%) 44%, transparent 72%);
+  filter: blur(44px);
+  pointer-events: none;
+}
+
+.globe-wrap {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.globe-canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: block;
+  width: min(86vmin, 720px);
+  height: min(86vmin, 720px);
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 2rem);
+  pointer-events: auto;
+}
+
+.globe-pulse-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.live-feed-list {
+  content-visibility: auto;
+  contain-intrinsic-size: 270px;
+}
+
+.event-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  translate: -50% -50%;
+  width: 21px;
+  height: 21px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: opacity 0.22s linear, filter 0.22s linear;
+  will-change: transform, opacity;
+  z-index: 2;
+}
+
+.ufo-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  translate: -50% -62%;
+  width: 138px;
+  height: 196px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transition: opacity 0.24s linear;
+  transform-origin: center 65%;
+  z-index: 3;
+}
+
+.ufo-seer {
+  width: 106px;
+  height: auto;
+  display: block;
+  pointer-events: auto;
+  cursor: pointer;
+  filter: drop-shadow(0 0 20px rgb(158 117 255 / 58%));
+}
+
+.ufo-seer--wiggle {
+  animation: seer-wiggle 480ms ease-in-out;
+}
+
+.event-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border: 6px solid color-mix(in srgb, var(--pulse-color, #f4f2fa) 86%, transparent);
+  border-radius: 9999px;
+  opacity: 0;
+  filter: blur(0.9px);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--pulse-color, #f4f2fa) 56%, transparent);
+  animation:
+    pulse-expand 1.85s cubic-bezier(0.22, 0.61, 0.36, 1) infinite,
+    pulse-drift 6.8s ease-in-out infinite alternate;
+}
+
+.event-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--pulse-color, #f4f2fa) 95%, white 5%);
+  box-shadow: 0 0 0 2px rgb(9 7 17 / 72%), 0 0 0 4px color-mix(in srgb, var(--pulse-color, #f4f2fa) 80%, transparent);
+}
+
+@keyframes pulse-expand {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.58;
+  }
+  60% {
+    opacity: 0.28;
+  }
+  100% {
+    transform: scale(1.68);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-drift {
+  0% {
+    filter: blur(0.9px) hue-rotate(-8deg) saturate(1.02);
+  }
+  100% {
+    filter: blur(0.9px) hue-rotate(12deg) saturate(1.14);
+  }
+}
+
+@keyframes star-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-6%, -4%, 0);
+  }
+}
+
+@keyframes star-twinkle {
+  0% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes seer-wiggle {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  20% {
+    transform: rotate(-8deg) scale(1.02);
+  }
+  45% {
+    transform: rotate(7deg) scale(1.02);
+  }
+  70% {
+    transform: rotate(-4deg) scale(1.01);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .live-feed-panel {
+    margin-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
