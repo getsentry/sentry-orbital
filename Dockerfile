@@ -10,7 +10,7 @@ RUN bun run build
 FROM golang:1.25-alpine AS builder
 RUN mkdir -p /usr/src/orbital
 COPY . /usr/src/orbital
-COPY --from=frontend /app/../static /usr/src/orbital/static
+COPY --from=frontend /static /usr/src/orbital/static
 WORKDIR /usr/src/orbital
 RUN CGO_ENABLED=0 go build -ldflags '-extldflags "-static"' -v ./...
 
