@@ -28,7 +28,7 @@ const WATCHDOG_MS = 5000;
 const RETRY_MS = 3000;
 
 function toMarker(event: OrbitalEvent): MarkerPoint {
-  const markerId = `evt-${event.ts}-${Math.random().toString(16).slice(2)}`;
+  const markerId = crypto.randomUUID();
 
   return {
     id: markerId,
@@ -41,7 +41,7 @@ function toMarker(event: OrbitalEvent): MarkerPoint {
 
 function toFeed(event: OrbitalEvent): FeedItem {
   return {
-    id: `${event.ts}-${Math.random().toString(16).slice(2)}`,
+    id: crypto.randomUUID(),
     platform: event.platform,
     lat: event.lat,
     lng: event.lng,

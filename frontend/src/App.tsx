@@ -5,9 +5,10 @@ import { LiveFeed } from "./components/live-feed";
 import { SeerToast } from "./components/seer-toast";
 import { useEventStream } from "./hooks/use-event-stream";
 
+const currentYear = new Date().getFullYear();
+
 function App() {
   const { sampledLabel, feed, markers, isConnected } = useEventStream();
-  const currentYear = new Date().getFullYear();
 
   const onSeerClick = useCallback(() => {
     // Use this space for Cyber Monday, Black Friday, and other fun campaign copy (not sales/promotional pricing).

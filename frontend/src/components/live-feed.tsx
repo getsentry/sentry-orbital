@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { WebHaptics } from "web-haptics";
+import { useState } from "react";
+import { useHaptics } from "../hooks/use-haptics";
 import type { FeedItem } from "../types";
 
 type LiveFeedProps = {
@@ -12,21 +12,12 @@ function formatCoordinate(value: number, positive: string, negative: string): st
 
 export function LiveFeed({ feed }: LiveFeedProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const hapticsRef = useRef<WebHaptics | null>(null);
-
-  useEffect(() => {
-    hapticsRef.current = new WebHaptics();
-
-    return () => {
-      hapticsRef.current?.destroy();
-      hapticsRef.current = null;
-    };
-  }, []);
+  const haptics = useHaptics();
 
   const onToggle = () => {
     setCollapsed((current) => {
       const next = !current;
-      void hapticsRef.current?.trigger(next ? "success" : "nudge");
+      void haptics?.trigger(next ? "success" : "nudge");
       return next;
     });
   };

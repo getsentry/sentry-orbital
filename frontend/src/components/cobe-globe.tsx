@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import createGlobe from "cobe";
-import { WebHaptics } from "web-haptics";
+import { useHaptics } from "../hooks/use-haptics";
 import type { MarkerPoint } from "../types";
 
 type Props = {
@@ -148,6 +148,8 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
   const markersRef = useRef<MarkerPoint[]>(markers);
   const onSeerClickRef = useRef(onSeerClick);
   const pulsesDirtyRef = useRef(true);
+  const haptics = useHaptics();
+  const hapticsRef = useRef(haptics);
 
   useEffect(() => {
     markersRef.current = markers;
@@ -157,6 +159,10 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
   useEffect(() => {
     onSeerClickRef.current = onSeerClick;
   }, [onSeerClick]);
+
+  useEffect(() => {
+    hapticsRef.current = haptics;
+  }, [haptics]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -224,7 +230,6 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
     ufoEl.innerHTML = '<img class="ufo-seer" src="/seer.png" alt="Seer" />';
     pulseLayer.append(ufoEl);
     const ufoImage = ufoEl.querySelector<HTMLImageElement>(".ufo-seer");
-    const haptics = new WebHaptics();
 
     const pulseEls = new Map<string, HTMLDivElement>();
 
@@ -340,7 +345,7 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
       void ufoImage.offsetWidth;
       ufoImage.classList.add("ufo-seer--wiggle");
       onSeerClickRef.current?.();
-      void haptics.trigger("nudge");
+      void hapticsRef.current?.trigger("nudge");
     };
 
     const onSeerAnimationEnd = () => {
@@ -362,7 +367,6 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
       ufoImage?.removeEventListener("click", onSeerImageClick);
       ufoImage?.removeEventListener("animationend", onSeerAnimationEnd);
       window.cancelAnimationFrame(frame);
-      haptics.destroy();
       ufoEl.remove();
       pulseLayer.remove();
       globe.destroy();

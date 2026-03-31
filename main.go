@@ -193,6 +193,8 @@ func main() {
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              "https://da9a4372645d168eff259433fb2403c9@o1.ingest.us.sentry.io/4510957955514368",
 		EnableTracing:    true,
+		// 100% trace sampling — intentional for this low-traffic demo app.
+		// Reduce for high-traffic deployments.
 		TracesSampleRate: 1.0,
 		SendDefaultPII:   false,
 	}); err != nil {
