@@ -6,7 +6,7 @@ import { HapticsProvider } from "./hooks/use-haptics.tsx";
 import "./index.css";
 
 Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN,
+  dsn: import.meta.env.VITE_SENTRY_DSN ?? "https://e1b0f6fd25fcf288cefdfe0ad4d9fc4b@o1.ingest.us.sentry.io/4510957952892928",
   // 100% trace sampling — intentional for this low-traffic demo app.
   // Reduce for high-traffic deployments.
   tracesSampleRate: 1.0,
