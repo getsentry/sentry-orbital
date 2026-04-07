@@ -353,6 +353,7 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
     };
 
     canvas.style.cursor = "grab";
+    canvas.style.touchAction = "none";
     ufoImage?.addEventListener("click", onSeerImageClick);
     ufoImage?.addEventListener("animationend", onSeerAnimationEnd);
     canvas.addEventListener("pointerdown", onPointerDown);

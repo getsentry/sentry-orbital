@@ -151,6 +151,7 @@ export function useEventStream() {
     let lastMarkerAt = Date.now();
     let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
+    let reconnectPending = false;
 
     const clearTimers = () => {
       if (watchdogTimer !== null) {
@@ -160,14 +161,16 @@ export function useEventStream() {
     };
 
     const forceReconnect = (delay: number) => {
-      if (closed) {
+      if (closed || reconnectPending) {
         return;
       }
+      reconnectPending = true;
 
       setTimeout(() => {
         if (closed) {
           return;
         }
+        reconnectPending = false;
         sourceAbort?.abort();
         setReconnectTick((tick) => tick + 1);
       }, delay);
