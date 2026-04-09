@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"html/template"
 	"log"
 	"math/rand"
 	"net"
@@ -22,15 +21,6 @@ var (
 	flagTest       = flag.Bool("test", false, "send test events")
 	flagSampleRate = flag.Float64("sample-rate", 0.05, "fraction of UDP events to forward to SSE clients (0.0–1.0)")
 )
-
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("./templates/index.html"))
-	tmpl.Execute(w, struct {
-		Year int
-	}{
-		Year: time.Now().Year(),
-	})
-}
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
@@ -203,6 +193,8 @@ func main() {
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              "https://da9a4372645d168eff259433fb2403c9@o1.ingest.us.sentry.io/4510957955514368",
 		EnableTracing:    true,
+		// 100% trace sampling — intentional for this low-traffic demo app.
+		// Reduce for high-traffic deployments.
 		TracesSampleRate: 1.0,
 		SendDefaultPII:   false,
 	}); err != nil {
@@ -211,8 +203,7 @@ func main() {
 	defer sentry.Flush(2 * time.Second)
 
 	if *flagTest {
-		runTest(*flagUdpPort)
-		return
+		go runTest(*flagUdpPort)
 	}
 	es := eventsource.New(&eventsource.Settings{
 		Timeout:        1 * time.Second,
@@ -224,10 +215,10 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", handleIndex)
 	mux.HandleFunc("/healthz", handleHealth)
-	mux.Handle("/static/", http.FileServer(http.Dir(".")))
 	mux.Handle("/stream", es)
+	// Serve the Vite-built frontend from static/
+	mux.Handle("/", http.FileServer(http.Dir("static")))
 
 	sentryHandler := sentryhttp.New(sentryhttp.Options{Repanic: true})
 
