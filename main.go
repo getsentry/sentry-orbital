@@ -203,8 +203,7 @@ func main() {
 	defer sentry.Flush(2 * time.Second)
 
 	if *flagTest {
-		runTest(*flagUdpPort)
-		return
+		go runTest(*flagUdpPort)
 	}
 	es := eventsource.New(&eventsource.Settings{
 		Timeout:        1 * time.Second,
