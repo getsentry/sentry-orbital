@@ -6,7 +6,7 @@ type AnimatedNumberOptions = {
   precision?: number;
 };
 
-const DEFAULT_STIFFNESS = 0.08;
+const DEFAULT_STIFFNESS = 0.03;
 const DEFAULT_DAMPING = 0.85;
 const DEFAULT_PRECISION = 0.5;
 
