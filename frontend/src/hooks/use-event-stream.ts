@@ -27,6 +27,7 @@ const MOBILE_WIDTH = 640;
 const WATCHDOG_MS = 5000;
 const RETRY_MS = 3000;
 const FEED_RATE_MS = 320;
+const STATS_INTERVAL_MS = 1000;
 
 function toMarker(event: OrbitalEvent): MarkerPoint {
   const markerId = crypto.randomUUID();
@@ -151,6 +152,8 @@ export function useEventStream() {
     let sourceAbort: AbortController | null = null;
     let lastMarkerAt = Date.now();
     let lastFeedAt = Date.now();
+    let lastStatsAt = Date.now();
+    let internalSampled = 0;
     let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
     let reconnectPending = false;
@@ -218,7 +221,12 @@ export function useEventStream() {
         fresh.sort((a, b) => a.ts - b.ts);
       }
 
-      setSampled((current) => current + fresh.length);
+      // Track internally for accuracy, but only update state at fixed intervals
+      internalSampled += fresh.length;
+      if (now - lastStatsAt >= STATS_INTERVAL_MS) {
+        lastStatsAt = now;
+        setSampled(internalSampled);
+      }
 
       const allowedAdds = Math.min(
         fresh.length,
