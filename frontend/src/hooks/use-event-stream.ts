@@ -153,7 +153,7 @@ export function useEventStream() {
     let lastMarkerAt = Date.now();
     let lastFeedAt = Date.now();
     let lastStatsAt = Date.now();
-    let internalSampled = 0;
+    let sampledDelta = 0;
     let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
     let reconnectPending = false;
@@ -221,11 +221,13 @@ export function useEventStream() {
         fresh.sort((a, b) => a.ts - b.ts);
       }
 
-      // Track internally for accuracy, but only update state at fixed intervals
-      internalSampled += fresh.length;
+      // Track delta since last update, flush to state at fixed intervals
+      sampledDelta += fresh.length;
       if (now - lastStatsAt >= STATS_INTERVAL_MS) {
         lastStatsAt = now;
-        setSampled(internalSampled);
+        const delta = sampledDelta;
+        sampledDelta = 0;
+        setSampled((current) => current + delta);
       }
 
       const allowedAdds = Math.min(
