@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { stream } from "fetch-event-stream";
 import type { FeedItem, MarkerPoint, OrbitalEvent } from "../types";
 
@@ -26,6 +26,8 @@ const MARKER_MAX_PER_MESSAGE = 3;
 const MOBILE_WIDTH = 640;
 const WATCHDOG_MS = 5000;
 const RETRY_MS = 3000;
+const FEED_RATE_MS = 320;
+const STATS_INTERVAL_MS = 1000;
 
 function toMarker(event: OrbitalEvent): MarkerPoint {
   const markerId = crypto.randomUUID();
@@ -149,6 +151,9 @@ export function useEventStream() {
   useEffect(() => {
     let sourceAbort: AbortController | null = null;
     let lastMarkerAt = Date.now();
+    let lastFeedAt = Date.now();
+    let lastStatsAt = Date.now();
+    let sampledDelta = 0;
     let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
     let reconnectPending = false;
@@ -216,7 +221,14 @@ export function useEventStream() {
         fresh.sort((a, b) => a.ts - b.ts);
       }
 
-      setSampled((current) => current + fresh.length);
+      // Track delta since last update, flush to state at fixed intervals
+      sampledDelta += fresh.length;
+      if (now - lastStatsAt >= STATS_INTERVAL_MS) {
+        lastStatsAt = now;
+        const delta = sampledDelta;
+        sampledDelta = 0;
+        setSampled((current) => current + delta);
+      }
 
       const allowedAdds = Math.min(
         fresh.length,
@@ -236,12 +248,18 @@ export function useEventStream() {
         });
       }
 
-      setFeed((current) => {
-        const mobile = window.innerWidth <= MOBILE_WIDTH;
-        const limit = mobile ? FEED_LIMIT_MOBILE : FEED_LIMIT_DESKTOP;
-        const next = [...fresh.slice().reverse().map((event) => toFeed(event)), ...current];
-        return next.slice(0, limit);
-      });
+      // Throttle feed updates to avoid overwhelming the UI
+      if (now - lastFeedAt >= FEED_RATE_MS) {
+        lastFeedAt = now;
+        // Only add the most recent event to the feed per update
+        const latestEvent = fresh[fresh.length - 1];
+        setFeed((current) => {
+          const mobile = window.innerWidth <= MOBILE_WIDTH;
+          const limit = mobile ? FEED_LIMIT_MOBILE : FEED_LIMIT_DESKTOP;
+          const next = [toFeed(latestEvent), ...current];
+          return next.slice(0, limit);
+        });
+      }
     };
 
     const connect = async () => {
@@ -307,11 +325,8 @@ export function useEventStream() {
     };
   }, []);
 
-  const sampledLabel = useMemo(() => sampled.toLocaleString(), [sampled]);
-
   return {
     sampled,
-    sampledLabel,
     markers,
     feed,
     isConnected,

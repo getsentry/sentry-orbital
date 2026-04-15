@@ -8,7 +8,8 @@ import { useEventStream } from "./hooks/use-event-stream";
 const currentYear = new Date().getFullYear();
 
 function App() {
-  const { sampledLabel, feed, markers, isConnected } = useEventStream();
+  const { sampled, feed, markers, isConnected } = useEventStream();
+  const sampledLabel = sampled.toLocaleString();
 
   const onSeerClick = useCallback(() => {
     // Use this space for Cyber Monday, Black Friday, and other fun campaign copy (not sales/promotional pricing).
