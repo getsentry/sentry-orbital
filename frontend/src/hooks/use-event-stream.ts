@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { stream } from "fetch-event-stream";
 import type { FeedItem, MarkerPoint, OrbitalEvent } from "../types";
+import { generateUUID } from "../utils";
 
 const PLATFORM_COLORS: Record<string, [number, number, number]> = {
   javascript: [0.76, 0.38, 1],
@@ -30,7 +31,7 @@ const FEED_RATE_MS = 320;
 const STATS_INTERVAL_MS = 1000;
 
 function toMarker(event: OrbitalEvent): MarkerPoint {
-  const markerId = crypto.randomUUID();
+  const markerId = generateUUID();
 
   return {
     id: markerId,
@@ -43,7 +44,7 @@ function toMarker(event: OrbitalEvent): MarkerPoint {
 
 function toFeed(event: OrbitalEvent): FeedItem {
   return {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     platform: event.platform,
     lat: event.lat,
     lng: event.lng,

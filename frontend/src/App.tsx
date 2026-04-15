@@ -2,7 +2,9 @@ import { useCallback } from "react";
 import { Toaster, toast } from "sonner";
 import { CobeGlobe } from "./components/cobe-globe";
 import { LiveFeed } from "./components/live-feed";
+import { PauseToast } from "./components/pause-toast";
 import { SeerToast } from "./components/seer-toast";
+import { ShootingStars } from "./components/shooting-stars";
 import { useEventStream } from "./hooks/use-event-stream";
 
 const currentYear = new Date().getFullYear();
@@ -36,21 +38,47 @@ function App() {
     );
   }, []);
 
+  const onPauseToggle = useCallback((isPaused: boolean) => {
+    toast.custom(
+      () => <PauseToast isPaused={isPaused} />,
+      {
+        id: "pause-toast",
+        duration: 2000,
+        unstyled: true,
+        classNames: {
+          toast: "!border-0 !bg-transparent !p-0 !shadow-none",
+        },
+      },
+    );
+  }, []);
+
   return (
     <div className="app-shell">
+      <ShootingStars />
       <div className="orbital-glow" />
       <div className="globe-wrap">
-        <CobeGlobe markers={markers} onSeerClick={onSeerClick} />
+        <CobeGlobe 
+          markers={markers} 
+          onSeerClick={onSeerClick}
+          onPauseToggle={onPauseToggle}
+        />
       </div>
 
       <main className="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
         <header className="pointer-events-auto flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-gradient-to-b from-[#0b0914]/65 to-[#0b0914]/45 px-3.5 py-2.5 backdrop-blur-xl">
           <div className="flex min-w-0 items-center gap-2.5">
-            <img
-              src="/logo.svg"
-              alt="Sentry"
-              className="h-auto w-[clamp(68px,18vw,104px)] shrink-0 opacity-95"
-            />
+            <a
+              href="https://sentry.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0"
+            >
+              <img
+                src="/logo.svg"
+                alt="Sentry"
+                className="h-auto w-[clamp(68px,18vw,104px)] opacity-95 transition-opacity hover:opacity-100"
+              />
+            </a>
             <span
               className="h-5 w-px shrink-0 bg-white/20"
               aria-hidden="true"
