@@ -2,7 +2,7 @@ local orbital = import './pipelines/orbital.libsonnet';
 local pipedream = import 'github.com/getsentry/gocd-jsonnet/libs/pipedream.libsonnet';
 
 local pipedream_config = {
-  name: 'orbital',
+  name: 'orbital-k8s',
   auto_deploy: true,
   // US-only
   exclude_regions: [
@@ -25,7 +25,7 @@ local pipedream_config = {
   rollback: {
     material_name: 'orbital_repo',
     stage: 'deploy-primary',
-    elastic_profile_id: 'orbital',
+    elastic_profile_id: 'orbital-k8s',
   },
 };
 
