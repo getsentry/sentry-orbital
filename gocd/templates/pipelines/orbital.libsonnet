@@ -20,7 +20,7 @@ function(region) {
         jobs: {
           check: {
             timeout: 1200,
-            elastic_profile_id: 'orbital',
+            elastic_profile_id: 'orbital-k8s',
             tasks: [
               gocdtasks.script(importstr '../bash/check-github.sh'),
             ],
@@ -37,7 +37,7 @@ function(region) {
         jobs: {
           deploy: {
             timeout: 1200,
-            elastic_profile_id: 'orbital',
+            elastic_profile_id: 'orbital-k8s',
             tasks: [
               gocdtasks.script(importstr '../bash/deploy.sh'),
             ],
