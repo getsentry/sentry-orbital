@@ -28,12 +28,16 @@ export function useAnimatedNumber(
   const currentRef = useRef(target);
   const velocityRef = useRef(0);
   const frameRef = useRef<number | null>(null);
+  const displayedRef = useRef(target);
 
   useEffect(() => {
     // If we're already at the target (or very close), skip animation
     if (Math.abs(currentRef.current - target) < precision && velocityRef.current === 0) {
       currentRef.current = target;
-      setDisplayed(target);
+      if (displayedRef.current !== target) {
+        displayedRef.current = target;
+        setDisplayed(target);
+      }
       return;
     }
 
@@ -53,13 +57,18 @@ export function useAnimatedNumber(
       if (settled) {
         currentRef.current = target;
         velocityRef.current = 0;
+        displayedRef.current = target;
         setDisplayed(target);
         frameRef.current = null;
         return;
       }
 
-      // Round for display to avoid excessive decimal places
-      setDisplayed(Math.round(currentRef.current));
+      // Only update state when the rounded value actually changes
+      const rounded = Math.round(currentRef.current);
+      if (rounded !== displayedRef.current) {
+        displayedRef.current = rounded;
+        setDisplayed(rounded);
+      }
       frameRef.current = requestAnimationFrame(animate);
     };
 

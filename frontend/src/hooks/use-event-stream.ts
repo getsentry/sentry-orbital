@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { stream } from "fetch-event-stream";
 import type { FeedItem, MarkerPoint, OrbitalEvent } from "../types";
 
@@ -315,11 +315,8 @@ export function useEventStream() {
     };
   }, []);
 
-  const sampledLabel = useMemo(() => sampled.toLocaleString(), [sampled]);
-
   return {
     sampled,
-    sampledLabel,
     markers,
     feed,
     isConnected,
