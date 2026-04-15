@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { generateUUID } from "../utils";
 
 type ShootingStar = {
   id: string;
@@ -25,7 +26,7 @@ function createStar(): ShootingStar {
   const startY = fromTop ? randomRange(-5, 5) : randomRange(5, 45);
   
   return {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     startX,
     startY,
     angle: randomRange(25, 50), // Diagonal down-right direction
