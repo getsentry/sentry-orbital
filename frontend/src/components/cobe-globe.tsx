@@ -14,7 +14,7 @@ const MARKER_ELEVATION = 0.05;
 const GLOBE_THETA = 0.28;
 const GLOBE_THETA_MIN = -0.6;
 const GLOBE_THETA_MAX = 1.0;
-const GLOBE_AUTO_ROTATE_SPEED = 0.00145;
+const GLOBE_AUTO_ROTATE_SPEED = 0.000087; // radians per millisecond
 const GLOBE_MARKER_SIZE = 0.02;
 const GLOBE_MAP_BRIGHTNESS = 5;
 const GLOBE_BASE_COLOR: [number, number, number] = [0.34, 0.24, 0.56];
@@ -270,12 +270,14 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
       }
 
       if (!pointerDown) {
-        // Apply momentum with damping
-        velocityX *= POINTER_VELOCITY_DAMPING;
-        velocityY *= POINTER_VELOCITY_DAMPING_Y;
+        // Apply momentum with time-based damping (exponential decay)
+        const dampFactorX = Math.pow(POINTER_VELOCITY_DAMPING, deltaMs / 16.67);
+        const dampFactorY = Math.pow(POINTER_VELOCITY_DAMPING_Y, deltaMs / 16.67);
+        velocityX *= dampFactorX;
+        velocityY *= dampFactorY;
         
-        // Only auto-rotate when not paused
-        const autoRotate = isPaused ? 0 : GLOBE_AUTO_ROTATE_SPEED;
+        // Only auto-rotate when not paused (time-based)
+        const autoRotate = isPaused ? 0 : GLOBE_AUTO_ROTATE_SPEED * deltaMs;
         phi += autoRotate + velocityX;
         theta = Math.max(GLOBE_THETA_MIN, Math.min(GLOBE_THETA_MAX, theta + velocityY));
         
