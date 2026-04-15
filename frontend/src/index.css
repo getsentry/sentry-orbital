@@ -132,9 +132,12 @@ body::after {
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  transition: opacity 0.22s linear, filter 0.22s linear;
-  will-change: transform, opacity;
+  transition: opacity 0.22s linear;
   z-index: 2;
+}
+
+.event-pulse--hidden {
+  opacity: 0;
 }
 
 .ufo-marker {
@@ -174,9 +177,7 @@ body::after {
   opacity: 0;
   filter: blur(0.9px);
   box-shadow: 0 0 12px color-mix(in srgb, var(--pulse-color, #f4f2fa) 56%, transparent);
-  animation:
-    pulse-expand 1.85s cubic-bezier(0.22, 0.61, 0.36, 1) infinite,
-    pulse-drift 6.8s ease-in-out infinite alternate;
+  animation: pulse-expand 1.85s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
 }
 
 .event-pulse-dot {
@@ -201,14 +202,7 @@ body::after {
   }
 }
 
-@keyframes pulse-drift {
-  0% {
-    filter: blur(0.9px) hue-rotate(-8deg) saturate(1.02);
-  }
-  100% {
-    filter: blur(0.9px) hue-rotate(12deg) saturate(1.14);
-  }
-}
+
 
 @keyframes star-drift {
   from {
@@ -244,21 +238,6 @@ body::after {
   100% {
     transform: rotate(0deg) scale(1);
   }
-}
-
-@keyframes feed-item-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.live-feed-list li {
-  animation: feed-item-enter 0.24s ease-out;
 }
 
 @media (max-width: 768px) {
