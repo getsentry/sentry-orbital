@@ -18,6 +18,9 @@ const GLOBE_AUTO_ROTATE_SPEED = 0.000087; // radians per millisecond
 const GLOBE_MARKER_SIZE = 0.02;
 const GLOBE_MAP_BRIGHTNESS = 5;
 const GLOBE_BASE_COLOR: [number, number, number] = [0.34, 0.24, 0.56];
+const GLOBE_MAP_SAMPLES_DESKTOP = 12000;
+const GLOBE_MAP_SAMPLES_MOBILE = 6000;
+const MOBILE_WIDTH = 640;
 const POINTER_VELOCITY_DAMPING = 0.92;
 const POINTER_VELOCITY_DAMPING_Y = 0.88;
 const POINTER_VELOCITY_FACTOR = 0.0007;
@@ -146,8 +149,7 @@ function placePulseElement(
   const x = viewport.offsetX + projected.x * viewport.canvasWidth;
   const y = viewport.offsetY + projected.y * viewport.canvasHeight;
   element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-  element.style.opacity = projected.visible ? "1" : "0";
-  element.style.filter = projected.visible ? "none" : "blur(3px)";
+  element.classList.toggle("event-pulse--hidden", !projected.visible);
 }
 
 export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
@@ -220,15 +222,16 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
     const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(canvas);
 
+    const isMobile = window.innerWidth <= MOBILE_WIDTH;
     const globe = createGlobe(canvas, {
-      devicePixelRatio: Math.min(window.devicePixelRatio, 2),
+      devicePixelRatio: Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2),
       width: viewport.width,
       height: viewport.height,
       phi: 0,
       theta: GLOBE_THETA,
       dark: 1,
       diffuse: 1.15,
-      mapSamples: 12000,
+      mapSamples: isMobile ? GLOBE_MAP_SAMPLES_MOBILE : GLOBE_MAP_SAMPLES_DESKTOP,
       mapBrightness: GLOBE_MAP_BRIGHTNESS,
       baseColor: GLOBE_BASE_COLOR,
       markerColor: [0.94, 0.73, 0.15],
@@ -248,6 +251,12 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
     const ufoImage = ufoEl.querySelector<HTMLImageElement>(".ufo-seer");
 
     const pulseEls = new Map<string, HTMLDivElement>();
+    let cachedCobeMarkers: Array<{
+      location: [number, number];
+      size: number;
+      color: [number, number, number];
+      id: string;
+    }> = [];
 
     let frame = 0;
     let lastFrameAt = performance.now();
@@ -266,6 +275,13 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
 
       if (pulsesDirtyRef.current) {
         syncPulseElements(pulseLayer, pulseEls, markersRef.current);
+        // Rebuild cached cobe markers only when markers change
+        cachedCobeMarkers = markersRef.current.map((marker) => ({
+          location: [marker.lat, marker.lng] as [number, number],
+          size: GLOBE_MARKER_SIZE,
+          color: marker.color,
+          id: marker.id,
+        }));
         pulsesDirtyRef.current = false;
       }
 
@@ -293,12 +309,7 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
         height: viewport.height,
         phi,
         theta,
-        markers: markersRef.current.map((marker) => ({
-          location: [marker.lat, marker.lng] as [number, number],
-          size: GLOBE_MARKER_SIZE,
-          color: marker.color,
-          id: marker.id,
-        })),
+        markers: cachedCobeMarkers,
       });
 
       const aspect = viewport.width / viewport.height;
