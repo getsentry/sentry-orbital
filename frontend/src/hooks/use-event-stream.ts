@@ -26,6 +26,7 @@ const MARKER_MAX_PER_MESSAGE = 3;
 const MOBILE_WIDTH = 640;
 const WATCHDOG_MS = 5000;
 const RETRY_MS = 3000;
+const FEED_RATE_MS = 320;
 
 function toMarker(event: OrbitalEvent): MarkerPoint {
   const markerId = crypto.randomUUID();
@@ -149,6 +150,7 @@ export function useEventStream() {
   useEffect(() => {
     let sourceAbort: AbortController | null = null;
     let lastMarkerAt = Date.now();
+    let lastFeedAt = Date.now();
     let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
     let reconnectPending = false;
@@ -236,12 +238,18 @@ export function useEventStream() {
         });
       }
 
-      setFeed((current) => {
-        const mobile = window.innerWidth <= MOBILE_WIDTH;
-        const limit = mobile ? FEED_LIMIT_MOBILE : FEED_LIMIT_DESKTOP;
-        const next = [...fresh.slice().reverse().map((event) => toFeed(event)), ...current];
-        return next.slice(0, limit);
-      });
+      // Throttle feed updates to avoid overwhelming the UI
+      if (now - lastFeedAt >= FEED_RATE_MS) {
+        lastFeedAt = now;
+        // Only add the most recent event to the feed per update
+        const latestEvent = fresh[fresh.length - 1];
+        setFeed((current) => {
+          const mobile = window.innerWidth <= MOBILE_WIDTH;
+          const limit = mobile ? FEED_LIMIT_MOBILE : FEED_LIMIT_DESKTOP;
+          const next = [toFeed(latestEvent), ...current];
+          return next.slice(0, limit);
+        });
+      }
     };
 
     const connect = async () => {

@@ -246,6 +246,21 @@ body::after {
   }
 }
 
+@keyframes feed-item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.live-feed-list li {
+  animation: feed-item-enter 0.24s ease-out;
+}
+
 @media (max-width: 768px) {
   .live-feed-panel {
     margin-bottom: calc(1rem + env(safe-area-inset-bottom));

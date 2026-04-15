@@ -1,14 +1,20 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Toaster, toast } from "sonner";
 import { CobeGlobe } from "./components/cobe-globe";
 import { LiveFeed } from "./components/live-feed";
 import { SeerToast } from "./components/seer-toast";
+import { useAnimatedNumber } from "./hooks/use-animated-number";
 import { useEventStream } from "./hooks/use-event-stream";
 
 const currentYear = new Date().getFullYear();
 
 function App() {
-  const { sampledLabel, feed, markers, isConnected } = useEventStream();
+  const { sampled, feed, markers, isConnected } = useEventStream();
+  const animatedSampled = useAnimatedNumber(sampled);
+  const sampledLabel = useMemo(
+    () => animatedSampled.toLocaleString(),
+    [animatedSampled],
+  );
 
   const onSeerClick = useCallback(() => {
     // Use this space for Cyber Monday, Black Friday, and other fun campaign copy (not sales/promotional pricing).
