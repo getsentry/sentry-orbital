@@ -6,18 +6,25 @@ import type { MarkerPoint } from "../types";
 type Props = {
   markers: MarkerPoint[];
   onSeerClick?: () => void;
+  onPauseToggle?: (isPaused: boolean) => void;
 };
 
 const GLOBE_R = 0.8;
 const MARKER_ELEVATION = 0.05;
 const GLOBE_THETA = 0.28;
+const GLOBE_THETA_MIN = -0.6;
+const GLOBE_THETA_MAX = 1.0;
 const GLOBE_AUTO_ROTATE_SPEED = 0.00145;
 const GLOBE_MARKER_SIZE = 0.02;
 const GLOBE_MAP_BRIGHTNESS = 5;
 const GLOBE_BASE_COLOR: [number, number, number] = [0.34, 0.24, 0.56];
 const POINTER_VELOCITY_DAMPING = 0.92;
+const POINTER_VELOCITY_DAMPING_Y = 0.88;
 const POINTER_VELOCITY_FACTOR = 0.0007;
+const POINTER_VELOCITY_FACTOR_Y = 0.0005;
 const POINTER_ROTATION_FACTOR = 0.0035;
+const POINTER_ROTATION_FACTOR_Y = 0.002;
+const THETA_RETURN_SPEED = 0.002;
 const UFO_LATITUDE_MIN = -32;
 const UFO_LATITUDE_MAX = 32;
 const UFO_LATITUDE_SMOOTHING = 0.028;
@@ -143,10 +150,11 @@ function placePulseElement(
   element.style.filter = projected.visible ? "none" : "blur(3px)";
 }
 
-export function CobeGlobe({ markers, onSeerClick }: Props) {
+export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const markersRef = useRef<MarkerPoint[]>(markers);
   const onSeerClickRef = useRef(onSeerClick);
+  const onPauseToggleRef = useRef(onPauseToggle);
   const pulsesDirtyRef = useRef(true);
   const haptics = useHaptics();
   const hapticsRef = useRef(haptics);
@@ -161,6 +169,10 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
   }, [onSeerClick]);
 
   useEffect(() => {
+    onPauseToggleRef.current = onPauseToggle;
+  }, [onPauseToggle]);
+
+  useEffect(() => {
     hapticsRef.current = haptics;
   }, [haptics]);
 
@@ -171,6 +183,7 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
     }
 
     let phi = 0;
+    let theta = GLOBE_THETA;
     const viewport: ViewportState = {
       width: 0,
       height: 0,
@@ -180,8 +193,11 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
       canvasHeight: 0,
     };
     let pointerX = 0;
+    let pointerY = 0;
     let pointerDown = false;
-    let velocity = 0;
+    let velocityX = 0;
+    let velocityY = 0;
+    let isPaused = false;
 
     const wrapper = canvas.parentElement;
     if (!wrapper) {
@@ -254,14 +270,27 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
       }
 
       if (!pointerDown) {
-        velocity *= POINTER_VELOCITY_DAMPING;
-        phi += GLOBE_AUTO_ROTATE_SPEED + velocity;
+        // Apply momentum with damping
+        velocityX *= POINTER_VELOCITY_DAMPING;
+        velocityY *= POINTER_VELOCITY_DAMPING_Y;
+        
+        // Only auto-rotate when not paused
+        const autoRotate = isPaused ? 0 : GLOBE_AUTO_ROTATE_SPEED;
+        phi += autoRotate + velocityX;
+        theta = Math.max(GLOBE_THETA_MIN, Math.min(GLOBE_THETA_MAX, theta + velocityY));
+        
+        // Slowly return theta to default when not dragging
+        const thetaDiff = GLOBE_THETA - theta;
+        if (Math.abs(thetaDiff) > 0.001) {
+          theta += thetaDiff * THETA_RETURN_SPEED * deltaMs;
+        }
       }
 
       globe.update({
         width: viewport.width,
         height: viewport.height,
         phi,
+        theta,
         markers: markersRef.current.map((marker) => ({
           location: [marker.lat, marker.lng] as [number, number],
           size: GLOBE_MARKER_SIZE,
@@ -282,7 +311,7 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
           marker.lat,
           marker.lng,
           phi,
-          GLOBE_THETA,
+          theta,
           aspect,
         );
         placePulseElement(el, projected, viewport);
@@ -303,7 +332,7 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
         ufoLat,
         ufoLng,
         phi,
-        GLOBE_THETA,
+        theta,
         aspect,
       );
       placePulseElement(ufoEl, ufoProjected, viewport);
@@ -316,6 +345,7 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
     const onPointerDown = (event: PointerEvent) => {
       pointerDown = true;
       pointerX = event.clientX;
+      pointerY = event.clientY;
       canvas.style.cursor = "grabbing";
     };
 
@@ -329,10 +359,18 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
         return;
       }
 
-      const delta = event.clientX - pointerX;
+      const deltaX = event.clientX - pointerX;
+      const deltaY = event.clientY - pointerY;
       pointerX = event.clientX;
-      velocity = delta * POINTER_VELOCITY_FACTOR;
-      phi += delta * POINTER_ROTATION_FACTOR;
+      pointerY = event.clientY;
+      
+      // Horizontal rotation (phi)
+      velocityX = deltaX * POINTER_VELOCITY_FACTOR;
+      phi += deltaX * POINTER_ROTATION_FACTOR;
+      
+      // Vertical tilt (theta) - clamped to prevent flipping
+      velocityY = deltaY * POINTER_VELOCITY_FACTOR_Y;
+      theta = Math.max(GLOBE_THETA_MIN, Math.min(GLOBE_THETA_MAX, theta + deltaY * POINTER_ROTATION_FACTOR_Y));
     };
 
     const onSeerImageClick = (event: MouseEvent) => {
@@ -352,6 +390,20 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
       ufoImage?.classList.remove("ufo-seer--wiggle");
     };
 
+    const onKeyDown = (event: KeyboardEvent) => {
+      // Ignore if user is typing in an input
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (event.code === "Space") {
+        event.preventDefault();
+        isPaused = !isPaused;
+        onPauseToggleRef.current?.(isPaused);
+        void hapticsRef.current?.trigger("nudge");
+      }
+    };
+
     canvas.style.cursor = "grab";
     canvas.style.touchAction = "none";
     ufoImage?.addEventListener("click", onSeerImageClick);
@@ -359,12 +411,14 @@ export function CobeGlobe({ markers, onSeerClick }: Props) {
     canvas.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("keydown", onKeyDown);
 
     return () => {
       resizeObserver.disconnect();
       canvas.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("keydown", onKeyDown);
       ufoImage?.removeEventListener("click", onSeerImageClick);
       ufoImage?.removeEventListener("animationend", onSeerAnimationEnd);
       window.cancelAnimationFrame(frame);

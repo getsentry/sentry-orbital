@@ -2,7 +2,9 @@ import { useCallback } from "react";
 import { Toaster, toast } from "sonner";
 import { CobeGlobe } from "./components/cobe-globe";
 import { LiveFeed } from "./components/live-feed";
+import { PauseToast } from "./components/pause-toast";
 import { SeerToast } from "./components/seer-toast";
+import { ShootingStars } from "./components/shooting-stars";
 import { useEventStream } from "./hooks/use-event-stream";
 
 const currentYear = new Date().getFullYear();
@@ -36,11 +38,30 @@ function App() {
     );
   }, []);
 
+  const onPauseToggle = useCallback((isPaused: boolean) => {
+    toast.custom(
+      () => <PauseToast isPaused={isPaused} />,
+      {
+        id: "pause-toast",
+        duration: 2000,
+        unstyled: true,
+        classNames: {
+          toast: "!border-0 !bg-transparent !p-0 !shadow-none",
+        },
+      },
+    );
+  }, []);
+
   return (
     <div className="app-shell">
+      <ShootingStars />
       <div className="orbital-glow" />
       <div className="globe-wrap">
-        <CobeGlobe markers={markers} onSeerClick={onSeerClick} />
+        <CobeGlobe 
+          markers={markers} 
+          onSeerClick={onSeerClick}
+          onPauseToggle={onPauseToggle}
+        />
       </div>
 
       <main className="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
