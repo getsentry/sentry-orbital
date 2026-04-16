@@ -104,12 +104,10 @@ function createPulseElement(
   element.className = "event-pulse";
   element.style.setProperty("--pulse-color", colorToCss(marker.color));
 
-  const ringA = document.createElement("span");
-  ringA.className = "event-pulse-ring";
   const dot = document.createElement("span");
   dot.className = "event-pulse-dot";
 
-  element.append(ringA, dot);
+  element.append(dot);
   return element;
 }
 

@@ -169,23 +169,26 @@ body::after {
   animation: seer-wiggle 480ms ease-in-out;
 }
 
-.event-pulse-ring {
+.event-pulse-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--pulse-color, #f4f2fa) 95%, white 5%);
+  box-shadow: 0 0 0 2px rgb(9 7 17 / 72%), 0 0 0 4px color-mix(in srgb, var(--pulse-color, #f4f2fa) 80%, transparent);
+}
+
+.event-pulse-dot::after {
+  content: "";
   position: absolute;
-  inset: 0;
+  inset: -6px;
+  z-index: -1;
   border: 6px solid color-mix(in srgb, var(--pulse-color, #f4f2fa) 86%, transparent);
   border-radius: 9999px;
   opacity: 0;
   filter: blur(0.9px);
   box-shadow: 0 0 12px color-mix(in srgb, var(--pulse-color, #f4f2fa) 56%, transparent);
   animation: pulse-expand 1.85s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
-}
-
-.event-pulse-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background: color-mix(in srgb, var(--pulse-color, #f4f2fa) 95%, white 5%);
-  box-shadow: 0 0 0 2px rgb(9 7 17 / 72%), 0 0 0 4px color-mix(in srgb, var(--pulse-color, #f4f2fa) 80%, transparent);
 }
 
 @keyframes pulse-expand {
