@@ -1,10 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
-import { CobeGlobe } from "./components/cobe-globe";
+import { CobeGlobe, type CobeGlobeHandle } from "./components/cobe-globe";
 import { LiveFeed } from "./components/live-feed";
 import { PauseToast } from "./components/pause-toast";
 import { SeerToast } from "./components/seer-toast";
 import { ShootingStars } from "./components/shooting-stars";
+import { ZoomControls } from "./components/zoom-controls";
 import { useEventStream } from "./hooks/use-event-stream";
 
 const currentYear = new Date().getFullYear();
@@ -12,6 +13,8 @@ const currentYear = new Date().getFullYear();
 function App() {
   const { sampled, feed, markers, isConnected } = useEventStream();
   const sampledLabel = sampled.toLocaleString();
+  const globeRef = useRef<CobeGlobeHandle>(null);
+  const [zoomState, setZoomState] = useState({ canZoomIn: true, canZoomOut: true });
 
   const onSeerClick = useCallback(() => {
     // Use this space for Cyber Monday, Black Friday, and other fun campaign copy (not sales/promotional pricing).
@@ -52,15 +55,29 @@ function App() {
     );
   }, []);
 
+  const onZoomChange = useCallback((_scale: number, canZoomIn: boolean, canZoomOut: boolean) => {
+    setZoomState({ canZoomIn, canZoomOut });
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    globeRef.current?.zoomIn();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    globeRef.current?.zoomOut();
+  }, []);
+
   return (
     <div className="app-shell">
       <ShootingStars />
       <div className="orbital-glow" />
       <div className="globe-wrap">
-        <CobeGlobe 
+        <CobeGlobe
+          ref={globeRef}
           markers={markers} 
           onSeerClick={onSeerClick}
           onPauseToggle={onPauseToggle}
+          onZoomChange={onZoomChange}
         />
       </div>
 
@@ -117,6 +134,15 @@ function App() {
         </header>
 
         <LiveFeed feed={feed} />
+
+        <div className="pointer-events-auto absolute bottom-4 left-4 md:bottom-6 md:left-6">
+          <ZoomControls
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            canZoomIn={zoomState.canZoomIn}
+            canZoomOut={zoomState.canZoomOut}
+          />
+        </div>
 
         <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 text-[0.7rem] tracking-[0.08em] text-white/55">
           {`\u00A9 ${currentYear} Sentry`}

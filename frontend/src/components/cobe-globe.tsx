@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import createGlobe from "cobe";
 import { useHaptics } from "../hooks/use-haptics";
 import type { MarkerPoint } from "../types";
@@ -7,6 +7,12 @@ type Props = {
   markers: MarkerPoint[];
   onSeerClick?: () => void;
   onPauseToggle?: (isPaused: boolean) => void;
+  onZoomChange?: (scale: number, canZoomIn: boolean, canZoomOut: boolean) => void;
+};
+
+export type CobeGlobeHandle = {
+  zoomIn: () => void;
+  zoomOut: () => void;
 };
 
 const GLOBE_R = 0.8;
@@ -33,6 +39,13 @@ const UFO_LATITUDE_MAX = 32;
 const UFO_LATITUDE_SMOOTHING = 0.028;
 const UFO_ANGULAR_SPEED_MIN = 0.016;
 const UFO_ANGULAR_SPEED_MAX = 0.026;
+const ZOOM_MIN = 0.8;
+const ZOOM_MAX = 2;
+const ZOOM_DEFAULT = 1;
+const ZOOM_BUTTON_STEP = 0.25;
+const ZOOM_SMOOTHING = 0.12;
+const ZOOM_WHEEL_FACTOR = 0.002;
+const ZOOM_PINCH_SENSITIVITY = 1.5;
 
 type Projection = {
   x: number;
@@ -66,6 +79,7 @@ function projectMarker(
   phi: number,
   theta: number,
   aspect: number,
+  scale: number = 1,
 ) {
   const point = latLonTo3D(lat, lon);
   const r = GLOBE_R + MARKER_ELEVATION;
@@ -83,8 +97,8 @@ function projectMarker(
   const rz = -sy * cx * p0 + sx * p1 + cy * cx * p2;
 
   return {
-    x: (rx / aspect + 1) / 2,
-    y: (-ry + 1) / 2,
+    x: (rx * scale / aspect + 1) / 2,
+    y: (-ry * scale + 1) / 2,
     visible: rz >= 0 || rx * rx + ry * ry >= 0.64,
   };
 }
@@ -104,10 +118,13 @@ function createPulseElement(
   element.className = "event-pulse";
   element.style.setProperty("--pulse-color", colorToCss(marker.color));
 
+  const ring = document.createElement("span");
+  ring.className = "event-pulse-ring";
+
   const dot = document.createElement("span");
   dot.className = "event-pulse-dot";
 
-  element.append(dot);
+  element.append(ring, dot);
   return element;
 }
 
@@ -143,21 +160,30 @@ function placePulseElement(
   element: HTMLDivElement,
   projected: Projection,
   viewport: ViewportState,
+  scale: number = 1,
 ) {
   const x = viewport.offsetX + projected.x * viewport.canvasWidth;
   const y = viewport.offsetY + projected.y * viewport.canvasHeight;
   element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  element.style.setProperty("--zoom-scale", scale.toString());
   element.classList.toggle("event-pulse--hidden", !projected.visible);
 }
 
-export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
+export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
+  { markers, onSeerClick, onPauseToggle, onZoomChange },
+  ref,
+) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const markersRef = useRef<MarkerPoint[]>(markers);
   const onSeerClickRef = useRef(onSeerClick);
   const onPauseToggleRef = useRef(onPauseToggle);
+  const onZoomChangeRef = useRef(onZoomChange);
   const pulsesDirtyRef = useRef(true);
   const haptics = useHaptics();
   const hapticsRef = useRef(haptics);
+  const targetScaleRef = useRef(ZOOM_DEFAULT);
+  const zoomInRef = useRef<() => void>(() => {});
+  const zoomOutRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     markersRef.current = markers;
@@ -173,8 +199,17 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
   }, [onPauseToggle]);
 
   useEffect(() => {
+    onZoomChangeRef.current = onZoomChange;
+  }, [onZoomChange]);
+
+  useEffect(() => {
     hapticsRef.current = haptics;
   }, [haptics]);
+
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => zoomInRef.current(),
+    zoomOut: () => zoomOutRef.current(),
+  }));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -198,6 +233,35 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
     let velocityX = 0;
     let velocityY = 0;
     let isPaused = false;
+    let scale = ZOOM_DEFAULT;
+    let targetScale = targetScaleRef.current;
+    let pinchStartDistance = 0;
+    let pinchStartScale = 1;
+
+    const notifyZoomChange = () => {
+      const canZoomIn = targetScale < ZOOM_MAX;
+      const canZoomOut = targetScale > ZOOM_MIN;
+      onZoomChangeRef.current?.(scale, canZoomIn, canZoomOut);
+    };
+
+    const setTargetScale = (newTarget: number) => {
+      targetScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newTarget));
+      targetScaleRef.current = targetScale;
+      notifyZoomChange();
+    };
+
+    zoomInRef.current = () => {
+      setTargetScale(targetScale + ZOOM_BUTTON_STEP);
+      void hapticsRef.current?.trigger("nudge");
+    };
+
+    zoomOutRef.current = () => {
+      setTargetScale(targetScale - ZOOM_BUTTON_STEP);
+      void hapticsRef.current?.trigger("nudge");
+    };
+
+    // Notify initial zoom state
+    notifyZoomChange();
 
     const wrapper = canvas.parentElement;
     if (!wrapper) {
@@ -302,11 +366,20 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
         }
       }
 
+      // Smooth zoom interpolation
+      const scaleDiff = targetScale - scale;
+      if (Math.abs(scaleDiff) > 0.001) {
+        scale += scaleDiff * ZOOM_SMOOTHING;
+      } else {
+        scale = targetScale;
+      }
+
       globe.update({
         width: viewport.width,
         height: viewport.height,
         phi,
         theta,
+        scale,
         markers: cachedCobeMarkers,
       });
 
@@ -324,8 +397,9 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
           phi,
           theta,
           aspect,
+          scale,
         );
-        placePulseElement(el, projected, viewport);
+        placePulseElement(el, projected, viewport, scale);
       }
 
       ufoLng += ufoAngularSpeed * deltaMs;
@@ -345,8 +419,9 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
         phi,
         theta,
         aspect,
+        scale,
       );
-      placePulseElement(ufoEl, ufoProjected, viewport);
+      placePulseElement(ufoEl, ufoProjected, viewport, scale);
 
       frame = window.requestAnimationFrame(loop);
     };
@@ -415,11 +490,51 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
       }
     };
 
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const delta = -event.deltaY * ZOOM_WHEEL_FACTOR;
+      setTargetScale(targetScale + delta);
+    };
+
+    const getTouchDistance = (touches: TouchList): number => {
+      if (touches.length < 2) return 0;
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length === 2) {
+        pinchStartDistance = getTouchDistance(event.touches);
+        pinchStartScale = targetScale;
+      }
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length === 2) {
+        event.preventDefault();
+        const currentDistance = getTouchDistance(event.touches);
+        if (pinchStartDistance > 0) {
+          const pinchDelta = (currentDistance - pinchStartDistance) / pinchStartDistance;
+          const newScale = pinchStartScale + pinchDelta * ZOOM_PINCH_SENSITIVITY;
+          setTargetScale(newScale);
+        }
+      }
+    };
+
+    const onTouchEnd = () => {
+      pinchStartDistance = 0;
+    };
+
     canvas.style.cursor = "grab";
-    canvas.style.touchAction = "none";
+    canvas.style.touchAction = "pan-x pan-y";
     ufoImage?.addEventListener("click", onSeerImageClick);
     ufoImage?.addEventListener("animationend", onSeerAnimationEnd);
     canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("touchstart", onTouchStart, { passive: true });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("keydown", onKeyDown);
@@ -427,6 +542,10 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
     return () => {
       resizeObserver.disconnect();
       canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("keydown", onKeyDown);
@@ -440,4 +559,4 @@ export function CobeGlobe({ markers, onSeerClick, onPauseToggle }: Props) {
   }, []);
 
   return <canvas ref={canvasRef} className="globe-canvas" />;
-}
+});
