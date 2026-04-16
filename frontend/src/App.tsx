@@ -135,7 +135,7 @@ function App() {
 
         <LiveFeed feed={feed} />
 
-        <div className="pointer-events-auto absolute bottom-4 left-4 md:bottom-6 md:left-6">
+        <div className="pointer-events-auto absolute bottom-6 left-6 hidden md:block">
           <ZoomControls
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}

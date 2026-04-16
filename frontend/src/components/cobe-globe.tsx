@@ -527,14 +527,16 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
     };
 
     canvas.style.cursor = "grab";
-    canvas.style.touchAction = "pan-x pan-y";
+    canvas.style.touchAction = isMobile ? "none" : "pan-x pan-y";
     ufoImage?.addEventListener("click", onSeerImageClick);
     ufoImage?.addEventListener("animationend", onSeerAnimationEnd);
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("wheel", onWheel, { passive: false });
-    canvas.addEventListener("touchstart", onTouchStart, { passive: true });
-    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
-    canvas.addEventListener("touchend", onTouchEnd);
+    if (!isMobile) {
+      canvas.addEventListener("touchstart", onTouchStart, { passive: true });
+      canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+      canvas.addEventListener("touchend", onTouchEnd);
+    }
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("keydown", onKeyDown);
@@ -543,9 +545,11 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
       resizeObserver.disconnect();
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("wheel", onWheel);
-      canvas.removeEventListener("touchstart", onTouchStart);
-      canvas.removeEventListener("touchmove", onTouchMove);
-      canvas.removeEventListener("touchend", onTouchEnd);
+      if (!isMobile) {
+        canvas.removeEventListener("touchstart", onTouchStart);
+        canvas.removeEventListener("touchmove", onTouchMove);
+        canvas.removeEventListener("touchend", onTouchEnd);
+      }
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("keydown", onKeyDown);

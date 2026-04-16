@@ -1,5 +1,4 @@
 import { Plus, Minus } from "lucide-react";
-import { useHaptics } from "../hooks/use-haptics";
 
 type ZoomControlsProps = {
   onZoomIn: () => void;
@@ -14,24 +13,12 @@ export function ZoomControls({
   canZoomIn,
   canZoomOut,
 }: ZoomControlsProps) {
-  const haptics = useHaptics();
-
-  const handleZoomIn = () => {
-    onZoomIn();
-    void haptics?.trigger("nudge");
-  };
-
-  const handleZoomOut = () => {
-    onZoomOut();
-    void haptics?.trigger("nudge");
-  };
-
   return (
     <div className="zoom-controls">
       <button
         type="button"
         className="zoom-controls-btn"
-        onClick={handleZoomIn}
+        onClick={onZoomIn}
         disabled={!canZoomIn}
         aria-label="Zoom in"
       >
@@ -40,7 +27,7 @@ export function ZoomControls({
       <button
         type="button"
         className="zoom-controls-btn"
-        onClick={handleZoomOut}
+        onClick={onZoomOut}
         disabled={!canZoomOut}
         aria-label="Zoom out"
       >
