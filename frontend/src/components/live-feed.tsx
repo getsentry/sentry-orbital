@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useLocalStorage } from "@uidotdev/usehooks";
 import { useHaptics } from "../hooks/use-haptics";
 import type { FeedItem } from "../types";
 
@@ -11,7 +12,7 @@ function formatCoordinate(value: number, positive: string, negative: string): st
 }
 
 export function LiveFeed({ feed }: LiveFeedProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useLocalStorage("live-feed-collapsed", false);
   const haptics = useHaptics();
 
   const onToggle = () => {
@@ -26,13 +27,17 @@ export function LiveFeed({ feed }: LiveFeedProps) {
     <aside className="live-feed-panel pointer-events-auto w-full overflow-hidden rounded-xl border border-[#9e75ff]/30 bg-[#0a0813]/70 backdrop-blur-xl md:max-w-[350px] md:self-end">
       <button
         type="button"
-        className="flex w-full cursor-pointer justify-between bg-white/5 px-3.5 py-2.5 text-xs tracking-[0.09em] text-[#f4f2fa] uppercase"
+        className="flex w-full cursor-pointer items-center justify-between bg-white/5 px-3.5 py-2.5 text-xs tracking-[0.09em] text-[#f4f2fa] uppercase"
         onClick={onToggle}
         aria-expanded={!collapsed}
         aria-controls="live-events-list"
       >
         <span>Live events</span>
-        <span>{collapsed ? "+" : "-"}</span>
+        {collapsed ? (
+          <ChevronDown className="h-4 w-4" />
+        ) : (
+          <ChevronUp className="h-4 w-4" />
+        )}
       </button>
       {!collapsed && (
         <ul id="live-events-list" className="live-feed-list m-0 max-h-[270px] list-none overflow-auto p-0">
