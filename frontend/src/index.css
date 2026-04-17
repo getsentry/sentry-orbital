@@ -173,7 +173,7 @@ body::after {
   opacity: 0;
   filter: blur(0.9px);
   box-shadow: 0 0 12px color-mix(in srgb, var(--pulse-color, #f4f2fa) 56%, transparent);
-  transform: scale(var(--zoom-scale, 1));
+  scale: var(--zoom-scale, 1);
   animation: pulse-expand 1.85s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
 }
 
