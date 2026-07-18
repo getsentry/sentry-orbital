@@ -249,6 +249,7 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
     let pinchStartDistance = 0;
     let pinchStartScale = defaultZoom;
     let isPinching = false;
+    const activePointers = new Set<number>();
 
     const notifyZoomChange = () => {
       const canZoomIn = targetScale < ZOOM_MAX;
@@ -440,6 +441,7 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
     frame = window.requestAnimationFrame(loop);
 
     const onPointerDown = (event: PointerEvent) => {
+      activePointers.add(event.pointerId);
       if (isPinching) {
         return;
       }
@@ -449,7 +451,13 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
       canvas.style.cursor = "grabbing";
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (event: PointerEvent) => {
+      activePointers.delete(event.pointerId);
+      // Keep drag state if another pointer is still down (e.g. post-pinch).
+      // onTouchEnd re-arms pointerDown from the remaining touch when needed.
+      if (activePointers.size > 0) {
+        return;
+      }
       pointerDown = false;
       canvas.style.cursor = "grab";
     };
@@ -542,10 +550,27 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
     };
 
     const onTouchEnd = (event: TouchEvent) => {
-      if (event.touches.length < 2) {
-        isPinching = false;
-        pinchStartDistance = 0;
+      if (event.touches.length >= 2) {
+        return;
       }
+
+      isPinching = false;
+      pinchStartDistance = 0;
+
+      // Pinch clears pointerDown; if one finger remains, re-arm drag from that
+      // contact so the user can rotate without lifting and retouching.
+      // touchend runs after pointerup for the lifted finger on major browsers,
+      // so this restores state that onPointerUp just cleared.
+      if (event.touches.length === 1) {
+        pointerDown = true;
+        pointerX = event.touches[0].clientX;
+        pointerY = event.touches[0].clientY;
+        canvas.style.cursor = "grabbing";
+        return;
+      }
+
+      pointerDown = false;
+      canvas.style.cursor = "grab";
     };
 
     canvas.style.cursor = "grab";
