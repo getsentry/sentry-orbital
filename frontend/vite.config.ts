@@ -12,6 +12,7 @@ export default defineConfig({
     proxy: {
       "/stream": "http://localhost:7000",
       "/healthz": "http://localhost:7000",
+      "/stats": "http://localhost:7000",
     },
   },
 });

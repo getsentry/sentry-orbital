@@ -29,6 +29,9 @@ const WATCHDOG_MS = 5000;
 const RETRY_MS = 3000;
 const FEED_RATE_MS = 320;
 const STATS_INTERVAL_MS = 1000;
+// Drop only clearly-stale buffered bursts. Source clocks and proxy buffering
+// can push live events past 10s; 60s still rejects tab-resume floods.
+const STALE_EVENT_MS = 60_000;
 
 function toMarker(event: OrbitalEvent): MarkerPoint {
   const markerId = generateUUID();
@@ -153,16 +156,29 @@ export function useEventStream() {
     let sourceAbort: AbortController | null = null;
     let lastMarkerAt = Date.now();
     let lastFeedAt = Date.now();
-    let lastStatsAt = Date.now();
     let sampledDelta = 0;
     let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+    let statsTimer: ReturnType<typeof setInterval> | null = null;
     let closed = false;
     let reconnectPending = false;
+
+    const flushSampledDelta = () => {
+      if (sampledDelta === 0) {
+        return;
+      }
+      const delta = sampledDelta;
+      sampledDelta = 0;
+      setSampled((current) => current + delta);
+    };
 
     const clearTimers = () => {
       if (watchdogTimer !== null) {
         clearTimeout(watchdogTimer);
         watchdogTimer = null;
+      }
+      if (statsTimer !== null) {
+        clearInterval(statsTimer);
+        statsTimer = null;
       }
     };
 
@@ -209,7 +225,9 @@ export function useEventStream() {
       const now = Date.now();
       const fresh: OrbitalEvent[] = [];
       for (const event of events) {
-        if (now - event.ts <= 10_000) {
+        // Only drop events that are genuinely old (past direction). Future
+        // timestamps are kept — source clocks may run ahead of the client.
+        if (now - event.ts <= STALE_EVENT_MS) {
           fresh.push(event);
         }
       }
@@ -222,14 +240,8 @@ export function useEventStream() {
         fresh.sort((a, b) => a.ts - b.ts);
       }
 
-      // Track delta since last update, flush to state at fixed intervals
+      // Accumulate; a fixed interval flushes to React state (see statsTimer).
       sampledDelta += fresh.length;
-      if (now - lastStatsAt >= STATS_INTERVAL_MS) {
-        lastStatsAt = now;
-        const delta = sampledDelta;
-        sampledDelta = 0;
-        setSampled((current) => current + delta);
-      }
 
       const allowedAdds = Math.min(
         fresh.length,
@@ -306,10 +318,12 @@ export function useEventStream() {
       }
     };
 
+    statsTimer = setInterval(flushSampledDelta, STATS_INTERVAL_MS);
     connect();
 
     return () => {
       closed = true;
+      flushSampledDelta();
       clearTimers();
       sourceAbort?.abort();
     };

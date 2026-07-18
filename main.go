@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	sentry "github.com/getsentry/sentry-go"
@@ -15,16 +17,35 @@ import (
 )
 
 var (
-	flagHost       = flag.String("host", "127.0.0.1", "listen addr")
-	flagHttpPort   = flag.Int("http-port", 7000, "http port")
-	flagUdpPort    = flag.Int("udp-port", 5556, "udp port")
-	flagTest       = flag.Bool("test", false, "send test events")
-	flagSampleRate = flag.Float64("sample-rate", 0.05, "fraction of UDP events to forward to SSE clients (0.0–1.0)")
+	flagHost           = flag.String("host", "127.0.0.1", "listen addr")
+	flagHttpPort       = flag.Int("http-port", 7000, "http port")
+	flagUdpPort        = flag.Int("udp-port", 5556, "udp port")
+	flagTest           = flag.Bool("test", false, "send test events")
+	flagSampleRate     = flag.Float64("sample-rate", 1.0, "fraction of UDP events eligible to forward (0.0–1.0); applied before max-forward-rate")
+	flagMaxForwardRate = flag.Float64("max-forward-rate", 50, "max events/sec to forward to SSE clients (0 = unlimited)")
 )
+
+// ingestStats tracks UDP receive/forward counters for /stats.
+var ingestStats struct {
+	received  atomic.Uint64
+	forwarded atomic.Uint64
+	dropped   atomic.Uint64
+}
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
+}
+
+func handleStats(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"udp_received":  ingestStats.received.Load(),
+		"udp_forwarded": ingestStats.forwarded.Load(),
+		"udp_dropped":   ingestStats.dropped.Load(),
+		"sample_rate":   *flagSampleRate,
+		"max_forward_rate": *flagMaxForwardRate,
+	})
 }
 
 func runTest(port int) {
@@ -191,8 +212,8 @@ func init() {
 
 func main() {
 	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              "https://da9a4372645d168eff259433fb2403c9@o1.ingest.us.sentry.io/4510957955514368",
-		EnableTracing:    true,
+		Dsn:           "https://da9a4372645d168eff259433fb2403c9@o1.ingest.us.sentry.io/4510957955514368",
+		EnableTracing: true,
 		// 100% trace sampling — intentional for this low-traffic demo app.
 		// Reduce for high-traffic deployments.
 		TracesSampleRate: 1.0,
@@ -216,6 +237,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/healthz", handleHealth)
+	mux.HandleFunc("/stats", handleStats)
 	mux.Handle("/stream", es)
 	// Serve the Vite-built frontend from static/
 	mux.Handle("/", http.FileServer(http.Dir("static")))
@@ -231,6 +253,7 @@ func main() {
 	}
 	defer conn.Close()
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 	// Heartbeat: send a ping every 3s so the client watchdog doesn't
 	// fire during legitimate low-traffic periods.
 	go func() {
@@ -241,8 +264,34 @@ func main() {
 		}
 	}()
 
+	// Periodic ingest rate logging — makes empty-globe outages obvious.
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		var prevRecv, prevFwd uint64
+		for range ticker.C {
+			recv := ingestStats.received.Load()
+			fwd := ingestStats.forwarded.Load()
+			log.Printf(
+				"ingest: received=%.1f/s forwarded=%.1f/s (total recv=%d fwd=%d drop=%d)",
+				float64(recv-prevRecv)/30,
+				float64(fwd-prevFwd)/30,
+				recv,
+				fwd,
+				ingestStats.dropped.Load(),
+			)
+			prevRecv, prevFwd = recv, fwd
+		}
+	}()
+
 	go func() {
 		b := make([]byte, 256)
+		var lastForward time.Time
+		var minGap time.Duration
+		if *flagMaxForwardRate > 0 {
+			minGap = time.Duration(float64(time.Second) / *flagMaxForwardRate)
+		}
+
 		for {
 			n, _, err := conn.ReadFromUDP(b)
 			if err != nil {
@@ -251,12 +300,25 @@ func main() {
 				log.Fatal(err)
 				return
 			}
-			if rng.Float64() >= *flagSampleRate {
+			ingestStats.received.Add(1)
+
+			if *flagSampleRate < 1.0 && rng.Float64() >= *flagSampleRate {
+				ingestStats.dropped.Add(1)
 				continue
 			}
+			if minGap > 0 {
+				now := time.Now()
+				if !lastForward.IsZero() && now.Sub(lastForward) < minGap {
+					ingestStats.dropped.Add(1)
+					continue
+				}
+				lastForward = now
+			}
+
 			d := make([]byte, n)
 			copy(d, b)
 			es.SendEventMessage(d)
+			ingestStats.forwarded.Add(1)
 		}
 	}()
 
