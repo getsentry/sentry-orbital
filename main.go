@@ -286,10 +286,36 @@ func main() {
 
 	go func() {
 		b := make([]byte, 256)
-		var lastForward time.Time
-		var minGap time.Duration
-		if *flagMaxForwardRate > 0 {
-			minGap = time.Duration(float64(time.Second) / *flagMaxForwardRate)
+		// Token bucket so UDP bursts still achieve max-forward-rate over time.
+		// A min-gap gate would drop almost an entire kernel backlog because
+		// time.Now barely advances between tight ReadFromUDP iterations.
+		var (
+			forwardRate  = *flagMaxForwardRate
+			forwardBurst float64
+			tokens       float64
+			lastRefill   time.Time
+		)
+		if forwardRate > 0 {
+			forwardBurst = forwardRate // allow up to 1s of burst
+			tokens = forwardBurst
+			lastRefill = time.Now()
+		}
+
+		allowForward := func() bool {
+			if forwardRate <= 0 {
+				return true
+			}
+			now := time.Now()
+			tokens += now.Sub(lastRefill).Seconds() * forwardRate
+			lastRefill = now
+			if tokens > forwardBurst {
+				tokens = forwardBurst
+			}
+			if tokens < 1 {
+				return false
+			}
+			tokens--
+			return true
 		}
 
 		for {
@@ -306,13 +332,9 @@ func main() {
 				ingestStats.dropped.Add(1)
 				continue
 			}
-			if minGap > 0 {
-				now := time.Now()
-				if !lastForward.IsZero() && now.Sub(lastForward) < minGap {
-					ingestStats.dropped.Add(1)
-					continue
-				}
-				lastForward = now
+			if !allowForward() {
+				ingestStats.dropped.Add(1)
+				continue
 			}
 
 			d := make([]byte, n)
