@@ -39,13 +39,20 @@ const UFO_LATITUDE_MAX = 32;
 const UFO_LATITUDE_SMOOTHING = 0.028;
 const UFO_ANGULAR_SPEED_MIN = 0.016;
 const UFO_ANGULAR_SPEED_MAX = 0.026;
-const ZOOM_MIN = 0.8;
+const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2;
-const ZOOM_DEFAULT = 1;
+const ZOOM_DEFAULT_DESKTOP = 1;
+const ZOOM_DEFAULT_MOBILE = 0.5; // 50% smaller than desktop for portrait viewports
 const ZOOM_BUTTON_STEP = 0.25;
 const ZOOM_SMOOTHING = 0.12;
 const ZOOM_WHEEL_FACTOR = 0.002;
 const ZOOM_PINCH_SENSITIVITY = 1.5;
+
+function getDefaultZoom(): number {
+  return window.innerWidth <= MOBILE_WIDTH
+    ? ZOOM_DEFAULT_MOBILE
+    : ZOOM_DEFAULT_DESKTOP;
+}
 
 type Projection = {
   x: number;
@@ -181,7 +188,7 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
   const pulsesDirtyRef = useRef(true);
   const haptics = useHaptics();
   const hapticsRef = useRef(haptics);
-  const targetScaleRef = useRef(ZOOM_DEFAULT);
+  const targetScaleRef = useRef(getDefaultZoom());
   const zoomInRef = useRef<() => void>(() => {});
   const zoomOutRef = useRef<() => void>(() => {});
 
@@ -217,6 +224,10 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
       return;
     }
 
+    const isMobile = window.innerWidth <= MOBILE_WIDTH;
+    const defaultZoom = isMobile ? ZOOM_DEFAULT_MOBILE : ZOOM_DEFAULT_DESKTOP;
+    targetScaleRef.current = defaultZoom;
+
     let phi = 0;
     let theta = GLOBE_THETA;
     const viewport: ViewportState = {
@@ -233,10 +244,11 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
     let velocityX = 0;
     let velocityY = 0;
     let isPaused = false;
-    let scale = ZOOM_DEFAULT;
-    let targetScale = targetScaleRef.current;
+    let scale = defaultZoom;
+    let targetScale = defaultZoom;
     let pinchStartDistance = 0;
-    let pinchStartScale = 1;
+    let pinchStartScale = defaultZoom;
+    let isPinching = false;
 
     const notifyZoomChange = () => {
       const canZoomIn = targetScale < ZOOM_MAX;
@@ -284,7 +296,6 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
     const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(canvas);
 
-    const isMobile = window.innerWidth <= MOBILE_WIDTH;
     const globe = createGlobe(canvas, {
       devicePixelRatio: Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2),
       width: viewport.width,
@@ -299,7 +310,7 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
       markerColor: [0.94, 0.73, 0.15],
       glowColor: [0.65, 0.47, 1],
       offset: [0, 0],
-      scale: 1,
+      scale: defaultZoom,
     });
 
     const pulseLayer = document.createElement("div");
@@ -429,6 +440,9 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
     frame = window.requestAnimationFrame(loop);
 
     const onPointerDown = (event: PointerEvent) => {
+      if (isPinching) {
+        return;
+      }
       pointerDown = true;
       pointerX = event.clientX;
       pointerY = event.clientY;
@@ -441,7 +455,7 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!pointerDown) {
+      if (!pointerDown || isPinching) {
         return;
       }
 
@@ -505,8 +519,13 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
 
     const onTouchStart = (event: TouchEvent) => {
       if (event.touches.length === 2) {
+        isPinching = true;
+        pointerDown = false;
+        velocityX = 0;
+        velocityY = 0;
         pinchStartDistance = getTouchDistance(event.touches);
         pinchStartScale = targetScale;
+        canvas.style.cursor = "grab";
       }
     };
 
@@ -522,21 +541,24 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
       }
     };
 
-    const onTouchEnd = () => {
-      pinchStartDistance = 0;
+    const onTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length < 2) {
+        isPinching = false;
+        pinchStartDistance = 0;
+      }
     };
 
     canvas.style.cursor = "grab";
-    canvas.style.touchAction = isMobile ? "none" : "pan-x pan-y";
+    // Prevent browser pan/zoom so custom drag + pinch-zoom own the gestures.
+    canvas.style.touchAction = "none";
     ufoImage?.addEventListener("click", onSeerImageClick);
     ufoImage?.addEventListener("animationend", onSeerAnimationEnd);
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("wheel", onWheel, { passive: false });
-    if (!isMobile) {
-      canvas.addEventListener("touchstart", onTouchStart, { passive: true });
-      canvas.addEventListener("touchmove", onTouchMove, { passive: false });
-      canvas.addEventListener("touchend", onTouchEnd);
-    }
+    canvas.addEventListener("touchstart", onTouchStart, { passive: true });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd);
+    canvas.addEventListener("touchcancel", onTouchEnd);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("keydown", onKeyDown);
@@ -545,11 +567,10 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
       resizeObserver.disconnect();
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("wheel", onWheel);
-      if (!isMobile) {
-        canvas.removeEventListener("touchstart", onTouchStart);
-        canvas.removeEventListener("touchmove", onTouchMove);
-        canvas.removeEventListener("touchend", onTouchEnd);
-      }
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
+      canvas.removeEventListener("touchcancel", onTouchEnd);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("keydown", onKeyDown);
