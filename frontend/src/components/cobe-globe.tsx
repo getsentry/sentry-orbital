@@ -560,14 +560,13 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
         return;
       }
 
+      const wasPinching = isPinching;
       isPinching = false;
       pinchStartDistance = 0;
 
-      // Pinch clears pointerDown; if one finger remains, re-arm drag from that
-      // contact so the user can rotate without lifting and retouching.
-      // touchend runs after pointerup for the lifted finger on major browsers,
-      // so this restores state that onPointerUpOrCancel just cleared.
-      if (event.touches.length === 1) {
+      // Only re-arm after a real pinch→one-finger transition. Avoids re-arming
+      // from stale touches if touchend follows touchcancel (isPinching already false).
+      if (wasPinching && event.touches.length === 1) {
         pointerDown = true;
         pointerX = event.touches[0].clientX;
         pointerY = event.touches[0].clientY;
