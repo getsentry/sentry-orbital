@@ -296,7 +296,13 @@ func main() {
 			lastRefill   time.Time
 		)
 		if forwardRate > 0 {
-			forwardBurst = forwardRate // allow up to 1s of burst
+			// Burst is 1s of rate, but never below 1 token — otherwise any
+			// 0 < max-forward-rate < 1 permanently caps the bucket below the
+			// cost of a single forward and drops every event.
+			forwardBurst = forwardRate
+			if forwardBurst < 1 {
+				forwardBurst = 1
+			}
 			tokens = forwardBurst
 			lastRefill = time.Now()
 		}
