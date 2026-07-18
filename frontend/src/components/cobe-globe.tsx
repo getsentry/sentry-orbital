@@ -440,6 +440,11 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
 
     frame = window.requestAnimationFrame(loop);
 
+    const clearDragState = () => {
+      pointerDown = false;
+      canvas.style.cursor = "grab";
+    };
+
     const onPointerDown = (event: PointerEvent) => {
       activePointers.add(event.pointerId);
       if (isPinching) {
@@ -451,15 +456,16 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
       canvas.style.cursor = "grabbing";
     };
 
-    const onPointerUp = (event: PointerEvent) => {
+    // pointercancel often fires instead of pointerup (scroll, OS gesture, etc.).
+    // Drop the ID either way so activePointers cannot stick and block drag reset.
+    const onPointerUpOrCancel = (event: PointerEvent) => {
       activePointers.delete(event.pointerId);
       // Keep drag state if another pointer is still down (e.g. post-pinch).
       // onTouchEnd re-arms pointerDown from the remaining touch when needed.
       if (activePointers.size > 0) {
         return;
       }
-      pointerDown = false;
-      canvas.style.cursor = "grab";
+      clearDragState();
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -560,7 +566,7 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
       // Pinch clears pointerDown; if one finger remains, re-arm drag from that
       // contact so the user can rotate without lifting and retouching.
       // touchend runs after pointerup for the lifted finger on major browsers,
-      // so this restores state that onPointerUp just cleared.
+      // so this restores state that onPointerUpOrCancel just cleared.
       if (event.touches.length === 1) {
         pointerDown = true;
         pointerX = event.touches[0].clientX;
@@ -569,8 +575,18 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
         return;
       }
 
-      pointerDown = false;
-      canvas.style.cursor = "grab";
+      clearDragState();
+    };
+
+    const onTouchCancel = () => {
+      // System interruption: fully reset. Do not re-arm drag from residual
+      // touches — those coordinates go stale and cause a jump on next move.
+      activePointers.clear();
+      isPinching = false;
+      pinchStartDistance = 0;
+      velocityX = 0;
+      velocityY = 0;
+      clearDragState();
     };
 
     canvas.style.cursor = "grab";
@@ -583,8 +599,9 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
     canvas.addEventListener("touchstart", onTouchStart, { passive: true });
     canvas.addEventListener("touchmove", onTouchMove, { passive: false });
     canvas.addEventListener("touchend", onTouchEnd);
-    canvas.addEventListener("touchcancel", onTouchEnd);
-    window.addEventListener("pointerup", onPointerUp);
+    canvas.addEventListener("touchcancel", onTouchCancel);
+    window.addEventListener("pointerup", onPointerUpOrCancel);
+    window.addEventListener("pointercancel", onPointerUpOrCancel);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("keydown", onKeyDown);
 
@@ -595,8 +612,9 @@ export const CobeGlobe = forwardRef<CobeGlobeHandle, Props>(function CobeGlobe(
       canvas.removeEventListener("touchstart", onTouchStart);
       canvas.removeEventListener("touchmove", onTouchMove);
       canvas.removeEventListener("touchend", onTouchEnd);
-      canvas.removeEventListener("touchcancel", onTouchEnd);
-      window.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("touchcancel", onTouchCancel);
+      window.removeEventListener("pointerup", onPointerUpOrCancel);
+      window.removeEventListener("pointercancel", onPointerUpOrCancel);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("keydown", onKeyDown);
       ufoImage?.removeEventListener("click", onSeerImageClick);
