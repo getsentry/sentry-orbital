@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	sentry "github.com/getsentry/sentry-go"
@@ -25,6 +27,34 @@ var (
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
+}
+
+// Diagnostic counters for /stats, to understand where events are being lost
+// (e.g. whether UDP packets from getsentry are reaching this server at all).
+var (
+	statUDPReceived  atomic.Uint64 // packets read off the UDP socket (pre-sample)
+	statForwarded    atomic.Uint64 // packets forwarded to SSE clients (post-sample)
+	statLastRecvUnix atomic.Int64  // unix seconds of the last UDP packet received
+	statLastPayload  atomic.Value  // string: last raw payload seen
+)
+
+func handleStats(w http.ResponseWriter, r *http.Request) {
+	last, _ := statLastPayload.Load().(string)
+	lastRecv := statLastRecvUnix.Load()
+	secondsSinceRecv := int64(-1)
+	if lastRecv > 0 {
+		secondsSinceRecv = time.Now().Unix() - lastRecv
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"udp_received":       statUDPReceived.Load(),
+		"forwarded":          statForwarded.Load(),
+		"sample_rate":        *flagSampleRate,
+		"last_recv_unix":     lastRecv,
+		"seconds_since_recv": secondsSinceRecv,
+		"last_payload":       last,
+	})
 }
 
 func runTest(port int) {
@@ -216,6 +246,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/healthz", handleHealth)
+	mux.HandleFunc("/stats", handleStats)
 	mux.Handle("/stream", es)
 	// Serve the Vite-built frontend from static/
 	mux.Handle("/", http.FileServer(http.Dir("static")))
@@ -251,9 +282,13 @@ func main() {
 				log.Fatal(err)
 				return
 			}
+			statUDPReceived.Add(1)
+			statLastRecvUnix.Store(time.Now().Unix())
+			statLastPayload.Store(string(b[:n]))
 			if rng.Float64() >= *flagSampleRate {
 				continue
 			}
+			statForwarded.Add(1)
 			d := make([]byte, n)
 			copy(d, b)
 			es.SendEventMessage(d)
