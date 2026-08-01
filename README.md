@@ -4,7 +4,7 @@ Orbital is a geographical visualization of Sentry data — a real-time 3D globe 
 
 ## Architecture
 
-- **Go backend** (`main.go`): Receives UDP events, samples them at 5%, and fans out via SSE to connected browsers
+- **Go backend** (`main.go`): Receives UDP events, rate-limits them (~50/s max), and fans out via SSE to connected browsers
 - **React frontend** (`frontend/`): Vite + React + TypeScript app using [cobe](https://github.com/shuding/cobe) for the WebGL globe
 
 ## Development
@@ -61,8 +61,11 @@ docker run --rm -p 7000:7000 -p 5556:5556/udp -e HOST=0.0.0.0 sentry-orbital
 | `-host` | `127.0.0.1` | Listen address |
 | `-http-port` | `7000` | HTTP port |
 | `-udp-port` | `5556` | UDP port for event ingest |
-| `-sample-rate` | `0.05` | Fraction of events to forward (0.0–1.0) |
+| `-sample-rate` | `1.0` | Fraction of UDP events eligible to forward (0.0–1.0) |
+| `-max-forward-rate` | `50` | Max events/sec forwarded to SSE clients (`0` = unlimited) |
 | `-test` | `false` | Enable test event generator |
+
+`/stats` exposes cumulative UDP `received` / `forwarded` / `dropped` counters for diagnosing ingest outages.
 
 ## UDP Event Format
 
