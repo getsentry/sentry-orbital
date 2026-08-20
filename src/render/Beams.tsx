@@ -32,7 +32,7 @@ const barVert = /* glsl */ `
   uniform float uTime, uLifetime, uHovered, uDim, uOpacity;
   uniform float uWidth, uDepth, uTaper, uRise, uRiseEase, uFade;
   uniform float uShrink, uShrinkEase, uShrinkStart, uShrinkSpan, uRiseSpan;
-  uniform float uFlicker, uFlickerSpeed, uHueJitter, uOffset;
+  uniform float uFlicker, uFlickerSpeed, uHueJitter, uOffset, uSurface;
   uniform float uLenJitter, uLifeJitter, uInward, uFaceShade, uHideEndOn;
   varying vec3 vColor;
   varying float vAlpha;
@@ -74,7 +74,9 @@ const barVert = /* glsl */ `
     vec3 ax = normalize(cross(ref, up));
     vec3 ay = cross(up, ax);
 
-    vec3 root = iPos + iDir * uOffset;
+    // Sunk slightly, not lifted: burying the base cap can never show a gap
+    // between beam and ground, where lifting it by any amount can.
+    vec3 root = iDir * (uSurface - 0.004 + uOffset);
     float len = iLen * (1.0 + (iSeed - 0.5) * uLenJitter);
     // outward: the segment spans [0, span]; inward: [1-span, 1], so it appears
     // at the tip and reaches down toward the surface.
@@ -125,7 +127,7 @@ const ribbonVert = /* glsl */ `
   uniform float uTime, uLifetime, uHovered, uDim, uOpacity;
   uniform float uWidth, uTaper, uRise, uRiseEase, uRiseSpan, uFade;
   uniform float uShrink, uShrinkEase, uShrinkStart, uShrinkSpan;
-  uniform float uFlicker, uFlickerSpeed, uHueJitter, uOffset;
+  uniform float uFlicker, uFlickerSpeed, uHueJitter, uOffset, uSurface;
   uniform float uLenJitter, uLifeJitter, uInward;
   varying vec3 vColor;
   varying float vAlpha;
@@ -151,7 +153,9 @@ const ribbonVert = /* glsl */ `
     float st = clamp((life - uShrinkStart) / max(0.0001, uShrinkSpan), 0.0, 1.0);
     float span = grow * (1.0 - uShrink * easeCurve(st, uShrinkEase));
 
-    vec3 root = iPos + iDir * uOffset;
+    // Sunk slightly, not lifted: burying the base cap can never show a gap
+    // between beam and ground, where lifting it by any amount can.
+    vec3 root = iDir * (uSurface - 0.004 + uOffset);
     float len = iLen * (1.0 + (iSeed - 0.5) * uLenJitter);
     float a0 = uInward > 0.5 ? (1.0 - span) : 0.0;
     float a1 = uInward > 0.5 ? 1.0 : span;
@@ -220,7 +224,7 @@ const spriteVert = /* glsl */ `
   attribute float aSeed;
   attribute vec3 aDir;
   uniform float uTime, uLifetime, uHovered, uDim, uOpacity, uSize, uPixelScale, uGrow;
-  uniform float uFade, uFlicker, uFlickerSpeed, uHueJitter, uOffset, uLifeJitter;
+  uniform float uFade, uFlicker, uFlickerSpeed, uHueJitter, uOffset, uLifeJitter, uSurface;
   varying vec3 vColor;
   varying float vAlpha;
   varying float vLife;
@@ -238,7 +242,9 @@ const spriteVert = /* glsl */ `
     vAlpha = a * uOpacity;
     vColor = hueRotate(aColor, (aSeed - 0.5) * uHueJitter * 3.1416);
 
-    vec4 mv = modelViewMatrix * vec4(position + aDir * uOffset, 1.0);
+    // Sprites are flat marks on the surface rather than solids rising off it,
+    // so they lift clear instead of sinking — buried, the globe hides them.
+    vec4 mv = modelViewMatrix * vec4(aDir * (uSurface + 0.004 + uOffset), 1.0);
     float grow = mix(1.0, 1.0 + uGrow, life);
     float size = uSize * (0.6 + 0.8 * aIntensity) * grow;
     if (vAlpha <= 0.002) size = 0.0;
@@ -393,6 +399,7 @@ export function Beams({
       uDim: { value: 0.05 }, uOpacity: { value: 1 }, uBrightness: { value: 1 },
       uFade: { value: 0 }, uFlicker: { value: 0 }, uFlickerSpeed: { value: 8 },
       uHueJitter: { value: 0 }, uOffset: { value: 0 }, uLifeJitter: { value: 0 },
+      uSurface: { value: R },
     });
 
     const ribbonMat = new THREE.ShaderMaterial({
@@ -472,6 +479,12 @@ export function Beams({
       u.uFlickerSpeed.value = b.flickerSpeed;
       u.uHueJitter.value = b.jitterHue;
       u.uOffset.value = b.offset;
+      // The globe as it is actually drawn. This used to be a hardcoded radius,
+      // so the moment radiusScale moved off 1 every beam detached from the
+      // ground. Relief mode raises land off the sphere, and every event is on
+      // land by construction, so beams rise with it.
+      const gs = styleRef.current.globe;
+      u.uSurface.value = R * gs.radiusScale + (gs.mode === "relief" ? gs.relief : 0);
       u.uLifeJitter.value = b.jitterLife;
     };
     applyShared(state.ribbonMat.uniforms);
@@ -519,7 +532,8 @@ export function Beams({
       const i = cursor;
       cursor = (cursor + 1) % MAX;
 
-      latLngToVec3(e.latitude, e.longitude, R * 1.004, base);
+      // Radius comes from uSurface in the shader; this only needs the direction.
+      latLngToVec3(e.latitude, e.longitude, R, base);
       dir.copy(base).normalize();
       const len = b.length + e.intensity * b.lengthByIntensity;
       let col: readonly number[];
