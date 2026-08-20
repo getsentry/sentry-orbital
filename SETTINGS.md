@@ -1,0 +1,399 @@
+# Globe style settings
+
+Open with **`?dev`** in the URL or press **D**. Edits auto-save to localStorage.
+
+## Controls appear only when they apply
+
+The panel hides anything that wouldn't do anything in the current setup, so if a
+control is missing it's because its dependency is off:
+
+- `roughness` / `metalness` need `material` = `standard` or `physical`
+- `clearcoat` needs `material` = `physical`
+- `emissive`, `flat shading`, `shadows on` need any **lit** material (not `basic`)
+- `land colour`, `coastline softness` need `surface mode` = `solid` or `relief`
+- `relief height` / `softness` / `bevel` need `surface mode` = `relief`
+- every **Dots** control needs `surface mode` = `dots`
+- `line length` needs beam `style` = `line`; `sprite size`/`growth` need any other style
+- `fixed colour` needs beam `colour mode` = `fixed`
+- every effect's parameters appear only once that effect is enabled
+
+## Rotation
+
+Rotation lives on the **globe**, not the camera. The planet turns on its own
+axis while the camera holds still — so a fixed light behaves like a real sun and
+continents pass through day and night. Controls are in the **Globe** folder:
+
+- **auto-rotate** — turn the rotation on/off.
+- **rotate speed** — radians per second (0.16 ≈ 39s per rotation).
+
+The camera no longer orbits at all; **Camera** only frames the shot.
+
+### Blank screens that are expected, not bugs
+
+- `exposure` → 0 (global brightness multiplier)
+- Bloom `threshold` low + `intensity` high (everything blooms to white)
+- A lit material with all lights off
+- `globe opacity` or `dots opacity` → 0
+- `posterize bits` → 1
+- `pixelate`/`ascii` at extreme cell sizes
+
+---
+
+## ⬇ Config
+
+- **Copy config JSON** — whole style to clipboard; hand it over to bake in as the default.
+- **Log config** — same, to the console.
+- **Run self-test** — sweeps every setting, renders, prints a table of
+  `OK` / `no visible change` / `BLANK`.
+- **Reset to defaults** — clears the saved config and reloads.
+
+## ★ Presets
+
+- **Dot matrix (default)** — plain starting point, no effects.
+- **Clay cartoon** — chunky toy globe: raised continents, distant key light, self-shadowing.
+- **Night lights** — teal dotted land, warm gold events, purple haze, stars.
+- **Deep violet** — indigo globe, white dot land, cyan beams, blue rim.
+- **Ember mono** — warm monochrome amber halos.
+- **Aurora** — teal→pink gradient land, expanding rings.
+- **Neon night** — high-bloom cyan cyberpunk.
+- **Blueprint** — wireframe technical drawing.
+- **Pixel toy** — pixelated + posterised retro.
+
+> A preset overwrites every control. Copy your config first if you want to keep it.
+
+## Background
+
+- **color** — the empty space behind everything.
+
+## Globe
+
+- **visible** — draw the sphere at all.
+- **surface mode**
+  - `dots` — continents as a Fibonacci dot matrix.
+  - `solid` — continents painted flat onto the sphere.
+  - `relief` — continents raised off the sphere (the clay look).
+- **material** — how the surface reacts to light.
+  - `basic` — unlit; ignores all lights/shadows. Fastest.
+  - `standard` / `physical` — realistic PBR. `physical` adds clearcoat.
+  - `phong` — older shiny model. `lambert` — matte. `toon` — banded cel shading.
+- **ocean / base** — sphere colour (the sea in solid/relief).
+- **land (solid/relief)** — continent colour.
+- **relief height** — how far land is pushed out. Relief mode only.
+- **coastline softness** — extra blur on the *colour* map only. Coastlines are
+  already antialiased, so 0 is crisp *and* smooth; raise this only if you want a
+  deliberately hazy shoreline.
+- **relief softness** — blur on the *height* map only. Higher = wider, gentler slopes.
+- **relief bevel** — reshapes the slope from a straight ramp into an S-curve.
+  0 = sharp plateau edge, 1 = fully domed, like pressed clay.
+- **emissive** / **emissive int** — self-lit glow, independent of lights.
+- **roughness** — 0 = sharp mirror highlight, 1 = matte. Lit materials only.
+- **metalness** — 0 = plastic/clay, 1 = metal. Lit materials only.
+- **clearcoat** / **clearcoat rough** — glossy varnish layer. `physical` only;
+  this is what gives clay its sheen.
+- **opacity** — sphere transparency.
+- **wireframe** — draw triangle edges only.
+- **flat shading** — faceted low-poly instead of smooth.
+- **radius** — sphere size relative to the dot shell. <1 sits under the dots,
+  >1 swallows them.
+- **segments** — mesh resolution. Low = visibly faceted. Relief forces ≥128
+  because displacement needs vertices to push around.
+- **shadows on** — let the sphere cast and receive shadows.
+
+## Dots  *(dots mode only)*
+
+- **count (density)** — total sample points over the whole sphere; ~⅓ land on
+  continents. The master density control.
+- **size** — dot size.
+- **shell spacing** — pushes the dot shell in/out from the sphere.
+- **shape** — `circle` / `square` / `ring` / `diamond`.
+- **color mode** — `flat`, or a gradient by `latitude`/`longitude`.
+- **color** / **color B** — the two ends of that gradient (B unused when flat).
+- **opacity** — dot transparency.
+- **altitude** — height above the surface.
+- **size attenuation** — on: dots shrink with distance (3D). Off: constant
+  pixel size (flat, graphic look).
+- **additive blend** — dots add light where they overlap; good for glow.
+- **jitter** — 0 = perfect lattice, higher = organic scatter.
+
+## Atmosphere
+
+- **enabled** — rim glow around the limb of the globe.
+- **color** — glow colour.
+- **intensity** — brightness.
+- **falloff power** — higher = tighter band hugging the edge.
+- **scale** — size of the glow shell.
+
+## Lighting  *(lit materials only)*
+
+- **ambient on / color / int** — flat light from all directions. No shading or
+  direction; high values wash out the terminator.
+- **hemisphere on / sky color / ground color / int** — sky colour from above,
+  ground colour from below. Great soft fill for toy-like looks.
+- **directional on / color / int** — a sun; parallel rays from infinitely far.
+  - **dir X / Y / Z** — the light's direction, so it also sets **which way
+    shadows fall**.
+  - **dir casts shadow** — this light generates the shadow map.
+- **point on / color / int** — a bulb at a position.
+  - **point X / Y / Z** — its position.
+  - **point distance** — range before it stops lighting (0 = infinite).
+  - **point decay** — falloff steepness (2 = physically correct).
+
+## Shadows
+
+- **enabled** — master switch. Also needs a light with *casts shadow* and a mesh
+  with *shadows on*.
+- **type** — `basic` (hard, cheap) → `pcf` → `pcfsoft` (soft) → `vsm` (softest).
+- **bias** — nudges depth to remove shadow acne (self-striping stripes).
+- **normal bias** — offsets along the surface normal. The right tool for curved
+  self-shadowing: removes acne without detaching the shadow.
+- **radius** — blur width of the shadow edge.
+- **map size** — shadow resolution (512 → 4096). Higher = crisper, costlier.
+
+> Dots are GPU points and can't cast shadows — shadows are for solid/relief.
+
+## Beams  *(the events)*
+
+- **visible** — draw events at all.
+- **style**
+  - `line` — flat ribbon shooting out from the surface. The quad is expanded in
+    *view* space, so it always turns its width toward the camera and never shows
+    an end. Not a solid, and it takes no lighting cue from its orientation.
+  - `bar` — the same beam as a solid rectangular cuboid, with a depth as well as
+    a width and a baked face ramp. A real 3D object, which means a bar pointing
+    at the camera shows you its end rather than its height.
+  - `dot` — bright soft point.
+  - `ring` — ring that expands as it fades.
+  - `burst` — radial spikes from a core.
+  - `halo` — wide diffuse glow.
+
+  `line` and `bar` share every length, growth and fade control; only **bar
+  depth**, **face shading** and **thin out when end-on** are specific to `bar`.
+  Switching between them keeps the animation identical.
+- **colour mode** — `sdk` colours by SDK family (matching the leaderboard);
+  `fixed` paints every event one colour, for monochrome looks.
+- **fixed colour** — the colour used in `fixed` mode.
+- **sprite size** — size of dot/ring/burst/halo. Sprite styles only.
+- **sprite growth** — how much the sprite expands over its life.
+- **line length** — base beam length. `line` style only.
+- **+ by intensity** — extra length scaled by the event's intensity.
+- **opacity** — overall transparency.
+- **brightness** — colour multiplier; above 1 pushes into bloom nicely.
+- **lifetime (s)** — how long each event lives before fading out.
+- **additive blend** — overlapping events add up into hot spots.
+- **hover dim** — how far *other* SDKs fade when you hover one in the
+  leaderboard. 0 = they vanish completely.
+
+### Line-beam shaping *(line style)*
+
+`line` beams are camera-facing ribbons, not GL lines — WebGL ignores line width,
+so this is what makes real thickness possible.
+
+- **line width** — ribbon thickness in world units.
+- **taper to tip** — 0 = parallel sides, 1 = narrows to a point.
+- **edge softness** — feathers the long edges; 0 is hard-sided.
+- **trail length** — how much of the beam stays lit back from the tip.
+- **direction** — `out` grows from the surface, `in` descends toward it.
+
+### Animation
+
+- **fade curve** — `linear` · `easeIn` · `easeOut` · `pulse` · `flash` · `hold`.
+- **width** — the ribbon's on-screen width in `line`, or one side of the
+  cuboid's cross-section in `bar`.
+- **bar depth (x width)** — the other side, as a multiple of width. 1 = square
+  bar; low values give a thin slab, high values a wide plank.
+- **face shading** — strength of the baked top/side ramp that makes the bar read
+  as a solid rather than a silhouette. Applied to coverage as well as colour, so
+  it stays visible even with brightness pushed past the clipping point.
+- **thin out when end-on** — a bar pointing at the camera has no screen length to
+  show, so all you see is its square end, which pixelation then snaps into a
+  floating block. This shrinks the cross-section as a bar turns end-on so those
+  fade from notice, the way the old billboarded ribbon's hairline did. 0 is
+  geometrically honest and shows the squares; 1 makes head-on bars vanish
+  entirely. Bars toward the limb, where height is actually readable, are
+  unaffected either way.
+- **grow-in amount** — how much of the height is animated in. 1 = the bar
+  emerges from the surface at zero height.
+- **grow-in duration** — fraction of life the growth takes. Separate from the
+  amount, so a bar can rise from nothing quickly and still have life left to
+  retract afterwards.
+- **grow-in easing** — the curve of the growth
+- **shrink over life** — beams retract as they age, so height reads as age: the
+  tallest beams on screen are the newest, the stubbiest are about to expire.
+  1 shrinks away to nothing. Applies to line beams; sprite styles have no
+  length. Combines with grow-in — a beam can rise in and then settle back down.
+- **shrink starts at** — fraction of life to hold full height before retracting.
+  0.6 means a beam stands at full height for most of its life, then drops.
+- **shrink duration** — fraction of life the retraction takes. Low values are a
+  fast collapse; combined with a late start you get a beam that holds, then
+  snaps down. Start + duration past 1 means it never finishes retracting.
+- **shrink easing** — the curve of the retraction.
+  (`linear`/`easeOut`/`easeIn`/`elastic`).
+
+A full bar-chart lifecycle — out of the ground, up to height, back down, then
+gone — is grow-in amount 1 with a short duration, then shrink 1 starting once
+the growth finishes, with the fade curve set to `hold` so the fade happens last
+rather than across the whole life.
+
+- **flicker** + **speed** — per-beam brightness noise.
+- **sprite spin** — rotation for the sprite styles.
+- **lift off surface** — raises the base off the globe.
+
+### Per-event variation
+
+Each event gets its own random seed, so these vary beam to beam rather than
+moving in lockstep.
+
+- **hue variation** — colour drift around the base colour.
+- **length variation** — random length spread.
+- **lifetime variation** — random lifetime spread; stops bursts fading together.
+
+## Bloom
+
+- **enabled** — glow bleeding out of bright areas.
+- **intensity** — strength of the glow.
+- **threshold** — how bright a pixel must be to bloom. **Low + high intensity =
+  white-out.**
+- **smoothing** — softness of that threshold cutoff.
+- **radius** — how far the glow spreads.
+- **mipmap blur** — wider, softer glow. Can cause blocky artifacts on some GPUs;
+  off uses a smoother kernel blur.
+
+## Style effects
+
+- **pixelate** / **pixel size** — chunky pixels.
+- **ASCII** / **ascii cell** — renders the scene as ASCII characters.
+- **halftone dots** / **halftone scale** / **halftone angle** — print-style dot screen.
+- **posterize (cartoon)** / **color bits** — reduces the number of colours.
+  Low bits = flat cartoon banding; 1 bit is nearly black/white.
+- **grayscale** — strips colour.
+- **sepia** / **sepia amount** — warm brown wash.
+- **scanlines** / **scanline density** — CRT lines.
+
+## Color grade
+
+- **hue/sat on** — enable hue & saturation shifting.
+  - **hue** — rotates all colours around the wheel.
+  - **saturation** — −1 grey → +1 vivid.
+- **bright/contrast on** — enable brightness & contrast.
+  - **brightness** — lifts/lowers everything.
+  - **contrast** — pushes lights and darks apart.
+- **exposure** — overall light level. **0 = black screen.**
+
+## Lens / grain
+
+- **vignette** / **darkness** / **offset** — darkened corners; offset moves where
+  the darkening starts.
+- **chromatic aberration** / **ca offset** — RGB fringing toward the edges.
+  Applies to the map only: beams, clouds, stars and empty space stay sharp
+  however far you push the offset. The map still samples colour from wherever
+  the shift lands, so a beam can throw a faint fringe onto the ground beside
+  it — the beam itself is never smeared. Costs 5 extra draw calls per frame,
+  and only while the effect is on.
+- **film grain** / **grain amount** — animated noise.
+- **tilt shift** / **tilt blur** / **tilt focus** — blurs top and bottom for a
+  miniature-model effect; focus sets the sharp band's height.
+- **glitch** / **glitch strength** — periodic digital tearing.
+
+## Stars
+
+- **enabled** — drifting starfield behind everything.
+- **count** — how many stars.
+- **field radius** — how far out the field sits (keep well beyond the globe).
+- **field depth** — how thick the shell of stars is.
+- **star size** — point size in pixels.
+- **saturation** — 0 = white, higher tints each star a random hue.
+- **fade at edges** — softens star brightness.
+- **drift speed** — slow parallax rotation.
+
+## Clouds
+
+Procedural weather over the surface, in two completely different styles. Colour
+and opacity are material properties so they apply instantly; everything else
+regenerates the clouds.
+
+- **style** — `soft` is a smooth noise shell. `blocky` builds every cloud out of
+  cubes, Crossy Road style. The controls below switch with it.
+- **colour** / **opacity** — shared by both styles.
+- **altitude** — clearance above the globe surface. In blocky mode this is
+  measured off the *lowest block*, so clouds never sink into the planet however
+  big you make them.
+- **drift vs ground** — clouds sit inside the spinning globe, so this is motion
+  *relative to the surface*. Negative drifts the other way.
+- **seed** — a completely different sky at the same density.
+- **react to lights** — lit shading instead of unlit (needs a light on).
+- **additive blend** — glowing clouds rather than opaque ones.
+
+### Soft style
+
+Noise generated from each texel's direction on the sphere, so it wraps
+seamlessly and doesn't smear at the poles.
+
+- **coverage** — 0 clear sky, 1 overcast. Linear: 0.45 really is ~45% cloud.
+- **edge softness** — hard-edged blobs through to soft haze.
+- **scale (weather size)** — low = a few large systems, high = wispy detail.
+- **detail (octaves)** — how much fine structure sits inside each mass.
+
+### Blocky style
+
+Each cloud is a voxel blob: a few squashed ellipsoid lobes fused together, eroded
+at the rim, then emitted as boxes. Faces touching another block are dropped, so
+the whole sky is one draw call with no hidden geometry inside it. Face brightness
+is baked into the mesh, so the chunky top/side/bottom look survives even with
+every light switched off.
+
+- **cloud count** — separate formations spread evenly over the globe.
+- **block size** — the edge of a single cube, in globe radii. The main size dial.
+- **cloud size (blocks)** — how many blocks across each formation is.
+- **puffiness (lobes)** — masses fused into each cloud. 1 = a single dome,
+  higher = lumpy multi-humped silhouettes.
+- **flatness** — vertical vs horizontal radius. Low = wide flat slabs, high =
+  tall towering heaps.
+- **ragged edges** — erosion at the rim. 0 = a clean stepped ellipsoid, 1 = a
+  chewed-up crumbly outline.
+- **size variance** — how much clouds differ in size from each other. 0 = every
+  cloud the same, 1 = tiny puffs alongside masses ~10x their width. The draw is
+  weighted toward small, so big clouds stay rare enough to read as landmarks,
+  and the *average* size doesn't move as you turn it up — only the spread does.
+  Block size stays uniform, so a big cloud is one built from more bricks, not
+  from bigger ones.
+- **speed variance** — how much clouds differ in drift rate from each other. 0
+  makes the sky move as one rigid shell; 1 spreads it from near-stationary to
+  about twice **drift vs ground**. Symmetric, so the average pace doesn't change
+  as you turn it up. Each cloud still travels along its own latitude, so clouds
+  near the poles cover less ground than equatorial ones at the same rate.
+- **gap between blocks** — shrinks each cube so the bricks visibly separate.
+  At 0 the blocks fuse into one solid stepped mass (and interior faces are
+  culled); above 0 every cube is drawn in full, which costs ~2x the geometry.
+- **face shading** — strength of the baked top/side/bottom brightness ramp.
+  0 = flat silhouette, 1 = strongly faceted.
+- **block variation** — random brightness jitter per cube, for a less uniform mass.
+- **cast shadow** — clouds throw shadows onto the globe. Needs shadows enabled
+  and a shadow-casting light.
+
+If you push cloud count and size together the builder stops at a geometry budget
+and warns in the console rather than locking the tab.
+
+## Halo shell
+
+A grainy particle shell floating around the globe.
+
+- **enabled** / **colour**
+- **particle count** — density of the shell.
+- **radius** — how far out it sits (1.0 = globe surface).
+- **thickness** — depth the particles scatter through; 0 = a thin sheet.
+- **particle size** — individual particle size.
+- **opacity** — transparency.
+- **additive blend** — glows where particles overlap.
+
+## Camera
+
+- **fov (base)** — the lens angle before flattening. High values give
+  wide-angle distortion; low values compress perspective.
+- **flatten (telephoto)** — 0..1. A wide lens makes whatever faces you bulge
+  outward (fish-eye); this narrows the lens and pulls the camera back by the
+  matching amount, so the globe **stays the same size on screen** but the land
+  reads flatter and more evenly sized. 1 is near-orthographic.
+- **distance** — how far the camera sits (applies live).
+- **zoom min** / **zoom max** — scroll-wheel limits. Swapped automatically if
+  you drag them past each other.
+- **tilt** — camera height, i.e. how much you look down on the globe.
