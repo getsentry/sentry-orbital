@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useLocalStorage } from "@uidotdev/usehooks";
 import { useHaptics } from "../hooks/use-haptics";
 import type { FeedItem } from "../types";
+import { formatPlatform } from "../utils";
 
 type LiveFeedProps = {
   feed: FeedItem[];
@@ -53,7 +54,7 @@ export function LiveFeed({ feed }: LiveFeedProps) {
                     backgroundColor: `rgb(${Math.round(item.color[0] * 255)} ${Math.round(item.color[1] * 255)} ${Math.round(item.color[2] * 255)})`,
                   }}
                 />
-                <strong className="capitalize">{item.platform}</strong>
+                <strong>{formatPlatform(item.platform)}</strong>
               </div>
               <span className="text-[#c8c0dc] [font-variant-numeric:tabular-nums]">
                 {formatCoordinate(item.lat, "N", "S")} {formatCoordinate(item.lng, "E", "W")}
