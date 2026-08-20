@@ -3,7 +3,7 @@ import { config } from "../config";
 
 const R = config.globeRadius;
 /** Guard so cranking clusters + spread together can't lock the tab. */
-const MAX_QUADS = 180_000;
+const MAX_QUADS = 320_000;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
 // ------------------------------------------------------------ cube faces ----
@@ -158,7 +158,8 @@ export function buildCloudGeometry(o: BlockyOpts): THREE.BufferGeometry {
   const idx: number[] = [];
 
   const cull = o.gap <= 0.001;
-  const half = (o.blockSize * (1 - o.gap)) / 2;
+  /** Corner inset from a cell's centre, in grid units. */
+  const k = (1 - o.gap) / 2;
   const rngBase = mulberry32(o.seed * 7919 + 13);
   const phase = rngBase() * Math.PI * 2;
   const N = Math.max(1, Math.round(o.clusters));
@@ -169,6 +170,13 @@ export function buildCloudGeometry(o: BlockyOpts): THREE.BufferGeometry {
   const north = new THREE.Vector3();
   const ref = new THREE.Vector3();
   const tmp = new THREE.Vector3();
+  const bE = new THREE.Vector3();
+  const bU = new THREE.Vector3();
+  const bN = new THREE.Vector3();
+  const tang = new THREE.Vector3();
+  const axis = new THREE.Vector3();
+  const spin = new THREE.Quaternion();
+  const gp = new THREE.Vector3();
 
   let quads = 0;
   let clipped = false;
@@ -227,18 +235,34 @@ export function buildCloudGeometry(o: BlockyOpts): THREE.BufferGeometry {
     const g = buildOccupancy(rng, { ...o, spread }, o.seed + i);
     if (!g.filled) continue;
 
-    // A cluster is a rigid slab sitting on the tangent plane, and a tangent
-    // plane never dips inside the sphere — the closest point to the centre is
-    // the contact point, so the only lift needed is the cloud's own underside.
-    // Measured off the lowest *occupied* block, not the bounding box, so
-    // `altitude` really is the clearance you see.
-    const base = o.surface + o.altitude - (g.minY * o.blockSize - half);
+    // Lifted off the lowest *occupied* block, not the bounding box, so
+    // `altitude` really is the clearance you see. Because blocks are wrapped
+    // onto the sphere below rather than laid on a flat tangent plane, that
+    // clearance now holds right across the cloud instead of growing toward its
+    // edges — which is what lets a cloud be wide without becoming a plate
+    // hovering off the planet.
+    const base = o.surface + o.altitude - (g.minY - k) * o.blockSize;
 
     for (let x = -g.bx; x <= g.bx; x++) {
       for (let yy = -g.by; yy <= g.by; yy++) {
         for (let z = -g.bz; z <= g.bz; z++) {
           if (!g.at(x, yy, z)) continue;
           const tint = 1 + o.tint * (cellHash(x, yy, z, o.seed + i + 500) - 0.5);
+
+          // The block's own frame, used only for its face normals.
+          const ox = x * o.blockSize;
+          const oz = z * o.blockSize;
+          const arc = Math.hypot(ox, oz);
+          if (arc < 1e-9) {
+            bE.copy(east); bU.copy(dir); bN.copy(north);
+          } else {
+            tang.copy(east).multiplyScalar(ox / arc).addScaledVector(north, oz / arc);
+            axis.crossVectors(dir, tang).normalize();
+            spin.setFromAxisAngle(axis, arc / base);
+            bE.copy(east).applyQuaternion(spin);
+            bU.copy(dir).applyQuaternion(spin);
+            bN.copy(north).applyQuaternion(spin);
+          }
 
           for (const f of FACES) {
             if (cull && g.at(x + f.n[0], yy + f.n[1], z + f.n[2])) continue;
@@ -250,18 +274,39 @@ export function buildCloudGeometry(o: BlockyOpts): THREE.BufferGeometry {
             const v0 = quads * 4;
 
             for (const [su, sv] of CORNERS) {
-              const lx = x * o.blockSize + half * (f.n[0] + su * f.u[0] + sv * f.v[0]);
-              const ly = yy * o.blockSize + half * (f.n[1] + su * f.u[1] + sv * f.v[1]);
-              const lz = z * o.blockSize + half * (f.n[2] + su * f.u[2] + sv * f.v[2]);
-              pos.push(
-                dir.x * (base + ly) + east.x * lx + north.x * lz,
-                dir.y * (base + ly) + east.y * lx + north.y * lz,
-                dir.z * (base + ly) + east.z * lx + north.z * lz,
+              // Corners are placed by grid position alone, so neighbouring
+              // blocks land on exactly the same points and the surface stays
+              // watertight however hard the cloud curves. Transforming each
+              // block rigidly instead fans neighbours apart as they rise —
+              // a fixed angle covers more ground at a larger radius — which
+              // tore visible holes across anything bigger than a puff.
+              // The cost is blocks that taper very slightly with height, which
+              // at cloud scale is invisible.
+              gp.set(
+                x + k * (f.n[0] + su * f.u[0] + sv * f.v[0]),
+                yy + k * (f.n[1] + su * f.u[1] + sv * f.v[1]),
+                z + k * (f.n[2] + su * f.u[2] + sv * f.v[2]),
               );
+              const cax = gp.x * o.blockSize;
+              const caz = gp.z * o.blockSize;
+              const carc = Math.hypot(cax, caz);
+              const radius = base + gp.y * o.blockSize;
+              if (carc < 1e-9) {
+                pos.push(dir.x * radius, dir.y * radius, dir.z * radius);
+              } else {
+                const a = carc / base;
+                const ca = Math.cos(a);
+                const sa = Math.sin(a) / carc;
+                pos.push(
+                  (dir.x * ca + (east.x * cax + north.x * caz) * sa) * radius,
+                  (dir.y * ca + (east.y * cax + north.y * caz) * sa) * radius,
+                  (dir.z * ca + (east.z * cax + north.z * caz) * sa) * radius,
+                );
+              }
               nor.push(
-                east.x * f.n[0] + dir.x * f.n[1] + north.x * f.n[2],
-                east.y * f.n[0] + dir.y * f.n[1] + north.y * f.n[2],
-                east.z * f.n[0] + dir.z * f.n[1] + north.z * f.n[2],
+                bE.x * f.n[0] + bU.x * f.n[1] + bN.x * f.n[2],
+                bE.y * f.n[0] + bU.y * f.n[1] + bN.y * f.n[2],
+                bE.z * f.n[0] + bU.z * f.n[1] + bN.z * f.n[2],
               );
               col.push(bright, bright, bright);
               spd.push(speed);
@@ -279,7 +324,7 @@ export function buildCloudGeometry(o: BlockyOpts): THREE.BufferGeometry {
 
   if (clipped) {
     console.warn(
-      `[clouds] hit the ${MAX_QUADS} quad budget — lower cluster count, spread, or turn the gap off.`,
+      `[clouds] hit the ${MAX_QUADS} quad budget — lower cloud count or size, or turn the gap off.`,
     );
   }
 

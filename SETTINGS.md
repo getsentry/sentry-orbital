@@ -333,8 +333,12 @@ is baked into the mesh, so the chunky top/side/bottom look survives even with
 every light switched off.
 
 - **cloud count** — separate formations spread evenly over the globe.
-- **block size** — the edge of a single cube, in globe radii. The main size dial.
-- **cloud size (blocks)** — how many blocks across each formation is.
+- **block size** — the edge of a single cube, in globe radii. The cheapest way to
+  make clouds bigger: it costs no extra geometry, where cloud size adds blocks.
+- **cloud size (blocks)** — how many blocks across each formation is. Goes wide
+  enough for a single cloud to span most of a hemisphere; clouds wrap the globe
+  rather than sitting on a flat tangent slab, so a big one hugs the surface
+  instead of hovering off it as a plate.
 - **puffiness (lobes)** — masses fused into each cloud. 1 = a single dome,
   higher = lumpy multi-humped silhouettes.
 - **flatness** — vertical vs horizontal radius. Low = wide flat slabs, high =

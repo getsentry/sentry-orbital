@@ -541,9 +541,9 @@ export function DevPanel({
 
         clClusters: { value: i.clouds.clusters, min: 1, max: 120, step: 1, label: "cloud count",
           render: blockyClouds },
-        clBlockSize: { value: i.clouds.blockSize, min: 0.004, max: 0.09, step: 0.001,
+        clBlockSize: { value: i.clouds.blockSize, min: 0.004, max: 0.2, step: 0.002,
           label: "block size", render: blockyClouds },
-        clSpread: { value: i.clouds.spread, min: 1, max: 8, step: 0.1, label: "cloud size (blocks)",
+        clSpread: { value: i.clouds.spread, min: 1, max: 24, step: 0.1, label: "cloud size (blocks)",
           render: blockyClouds },
         clPuffiness: { value: i.clouds.puffiness, min: 1, max: 6, step: 1, label: "puffiness (lobes)",
           render: blockyClouds },
