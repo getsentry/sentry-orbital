@@ -139,8 +139,9 @@ export type GlobeStyle = {
      *  1 = shrinks away to nothing by the end. */
     shrink: number;
     shrinkEase: BeamEase;
-    /** Fraction of life to hold full height before retracting. */
-    shrinkStart: number;
+    /** Seconds to hold at full height after the growth finishes, before
+     *  retracting. Absolute time, so it survives lifetime changes and jitter. */
+    shrinkDelay: number;
     /** Fraction of life the retraction takes — lower = faster collapse. */
     shrinkSpan: number;
     /** Fraction of the beam nearest the tip that stays lit (a comet trail). */
@@ -370,7 +371,7 @@ export const DEFAULT_STYLE: GlobeStyle = {
     riseSpan: 0.3,
     shrink: 0,
     shrinkEase: "linear",
-    shrinkStart: 0,
+    shrinkDelay: 0,
     shrinkSpan: 1,
     trail: 1,
     offset: 0,

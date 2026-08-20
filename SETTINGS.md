@@ -221,8 +221,12 @@ so this is what makes real thickness possible.
   tallest beams on screen are the newest, the stubbiest are about to expire.
   1 shrinks away to nothing. Applies to line beams; sprite styles have no
   length. Combines with grow-in — a beam can rise in and then settle back down.
-- **shrink starts at** — fraction of life to hold full height before retracting.
-  0.6 means a beam stands at full height for most of its life, then drops.
+- **hold before shrinking (s)** — how long a beam stands at full height before
+  it starts retracting, in seconds. Counted from where the growth finishes, not
+  from spawn, so re-tuning **grow-in duration** leaves the hold alone. Absolute
+  time rather than a fraction of life, so it also survives changes to **lifetime**
+  and to **life jitter**. Push it far enough and the beam never finishes
+  retracting before its life runs out — it just fades away tall.
 - **shrink duration** — fraction of life the retraction takes. Low values are a
   fast collapse; combined with a late start you get a beam that holds, then
   snaps down. Start + duration past 1 means it never finishes retracting.

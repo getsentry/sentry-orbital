@@ -31,7 +31,7 @@ const barVert = /* glsl */ `
   attribute float iSeed;
   uniform float uTime, uLifetime, uHovered, uDim, uOpacity;
   uniform float uWidth, uDepth, uTaper, uRise, uRiseEase, uFade;
-  uniform float uShrink, uShrinkEase, uShrinkStart, uShrinkSpan, uRiseSpan;
+  uniform float uShrink, uShrinkEase, uShrinkDelay, uShrinkSpan, uRiseSpan;
   uniform float uFlicker, uFlickerSpeed, uHueJitter, uOffset, uSurface;
   uniform float uLenJitter, uLifeJitter, uInward, uFaceShade, uHideEndOn;
   varying vec3 vColor;
@@ -64,7 +64,13 @@ const barVert = /* glsl */ `
     // shrink: retract as the beam ages, so height reads as age. Start and span
     // are separate from the amount, so the retraction can be held off and then
     // run at any speed rather than always taking the whole lifetime.
-    float st = clamp((life - uShrinkStart) / max(0.0001, uShrinkSpan), 0.0, 1.0);
+    // Hold at full height before retracting. Measured in seconds off this beam's
+    // own lifetime, so the pause stays put when the lifetime or its jitter move,
+    // and counted from where the growth ends rather than from spawn — otherwise
+    // re-tuning the grow-in duration silently eats into the hold.
+    float holdFrac = uShrinkDelay / max(0.05, lt);
+    float shrinkBegin = (uRise > 0.0 ? uRiseSpan : 0.0) + holdFrac;
+    float st = clamp((life - shrinkBegin) / max(0.0001, uShrinkSpan), 0.0, 1.0);
     float span = grow * (1.0 - uShrink * easeCurve(st, uShrinkEase));
 
     // A local frame around the beam's own axis, so the box is a real solid in
@@ -126,7 +132,7 @@ const ribbonVert = /* glsl */ `
   attribute float iSeed;
   uniform float uTime, uLifetime, uHovered, uDim, uOpacity;
   uniform float uWidth, uTaper, uRise, uRiseEase, uRiseSpan, uFade;
-  uniform float uShrink, uShrinkEase, uShrinkStart, uShrinkSpan;
+  uniform float uShrink, uShrinkEase, uShrinkDelay, uShrinkSpan;
   uniform float uFlicker, uFlickerSpeed, uHueJitter, uOffset, uSurface;
   uniform float uLenJitter, uLifeJitter, uInward;
   varying vec3 vColor;
@@ -150,7 +156,13 @@ const ribbonVert = /* glsl */ `
 
     float rt = clamp(life / max(0.0001, uRiseSpan), 0.0, 1.0);
     float grow = uRise <= 0.0 ? 1.0 : mix(1.0, easeCurve(rt, uRiseEase), uRise);
-    float st = clamp((life - uShrinkStart) / max(0.0001, uShrinkSpan), 0.0, 1.0);
+    // Hold at full height before retracting. Measured in seconds off this beam's
+    // own lifetime, so the pause stays put when the lifetime or its jitter move,
+    // and counted from where the growth ends rather than from spawn — otherwise
+    // re-tuning the grow-in duration silently eats into the hold.
+    float holdFrac = uShrinkDelay / max(0.05, lt);
+    float shrinkBegin = (uRise > 0.0 ? uRiseSpan : 0.0) + holdFrac;
+    float st = clamp((life - shrinkBegin) / max(0.0001, uShrinkSpan), 0.0, 1.0);
     float span = grow * (1.0 - uShrink * easeCurve(st, uShrinkEase));
 
     // Sunk slightly, not lifted: burying the base cap can never show a gap
@@ -408,7 +420,7 @@ export function Beams({
         uWidth: { value: 0.006 }, uTaper: { value: 0.6 }, uTrail: { value: 1 },
         uRise: { value: 0.35 }, uRiseEase: { value: 1 },
         uShrink: { value: 0 }, uShrinkEase: { value: 0 },
-        uShrinkStart: { value: 0 }, uShrinkSpan: { value: 1 }, uRiseSpan: { value: 0.3 },
+        uShrinkDelay: { value: 0 }, uShrinkSpan: { value: 1 }, uRiseSpan: { value: 0.3 },
         uDepth: { value: 1 }, uFaceShade: { value: 0.35 }, uHideEndOn: { value: 0.75 },
         uSoftness: { value: 0.5 }, uLenJitter: { value: 0 }, uInward: { value: 0 },
       },
@@ -498,7 +510,7 @@ export function Beams({
     ru.uRiseEase.value = EASE_INDEX[b.riseEase] ?? 1;
     ru.uShrink.value = b.shrink;
     ru.uRiseSpan.value = b.riseSpan;
-    ru.uShrinkStart.value = b.shrinkStart;
+    ru.uShrinkDelay.value = b.shrinkDelay;
     ru.uShrinkSpan.value = b.shrinkSpan;
     ru.uDepth.value = b.depthRatio;
     ru.uFaceShade.value = b.faceShade;
