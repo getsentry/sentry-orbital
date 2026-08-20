@@ -178,7 +178,6 @@ The camera no longer orbits at all; **Camera** only frames the shot.
 - **+ by intensity** — extra length scaled by the event's intensity.
 - **opacity** — overall transparency.
 - **brightness** — colour multiplier; above 1 pushes into bloom nicely.
-- **lifetime (s)** — how long each event lives before fading out.
 - **additive blend** — overlapping events add up into hot spots.
 - **hover dim** — how far *other* SDKs fade when you hover one in the
   leaderboard. 0 = they vanish completely.
@@ -211,32 +210,20 @@ so this is what makes real thickness possible.
   geometrically honest and shows the squares; 1 makes head-on bars vanish
   entirely. Bars toward the limb, where height is actually readable, are
   unaffected either way.
-- **grow-in amount** — how much of the height is animated in. 1 = the bar
-  emerges from the surface at zero height.
-- **grow-in duration** — fraction of life the growth takes. Separate from the
-  amount, so a bar can rise from nothing quickly and still have life left to
-  retract afterwards.
-- **grow-in easing** — the curve of the growth
-- **shrink over life** — beams retract as they age, so height reads as age: the
-  tallest beams on screen are the newest, the stubbiest are about to expire.
-  1 shrinks away to nothing. Applies to line beams; sprite styles have no
-  length. Combines with grow-in — a beam can rise in and then settle back down.
-- **hold before shrinking (s)** — how long a beam stands at full height before
-  it starts retracting, in seconds. Counted from where the growth finishes, not
-  from spawn, so re-tuning **grow-in duration** leaves the hold alone. Absolute
-  time rather than a fraction of life, so it also survives changes to **lifetime**
-  and to **life jitter**. Push it far enough and the beam never finishes
-  retracting before its life runs out — it just fades away tall.
-- **shrink duration** — fraction of life the retraction takes. Low values are a
-  fast collapse; combined with a late start you get a beam that holds, then
-  snaps down. Start + duration past 1 means it never finishes retracting.
+- **grow duration (s)** — seconds to rise from nothing to the full **length**.
+  Beams always grow all the way; there is no partial-growth amount.
+- **grow easing** — the curve of that rise.
+- **hold at full length (s)** — seconds standing at full height before it starts
+  retracting, up to 60.
+- **shrink duration (s)** — seconds to retract from full length back to nothing.
+  Beams always shrink all the way.
 - **shrink easing** — the curve of the retraction.
-  (`linear`/`easeOut`/`easeIn`/`elastic`).
 
-A full bar-chart lifecycle — out of the ground, up to height, back down, then
-gone — is grow-in amount 1 with a short duration, then shrink 1 starting once
-the growth finishes, with the fade curve set to `hold` so the fade happens last
-rather than across the whole life.
+There is no lifetime setting: a beam's life *is* grow + hold + shrink, so those
+three are the whole timeline and none of them can be squeezed out by a separate
+duration they have to fit inside. **life jitter** scales all three together, so
+the phases keep their proportions and the numbers above stay nominal seconds.
+  (`linear`/`easeOut`/`easeIn`/`elastic`).
 
 - **flicker** + **speed** — per-beam brightness noise.
 - **sprite spin** — rotation for the sprite styles.

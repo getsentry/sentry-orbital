@@ -131,19 +131,14 @@ export type GlobeStyle = {
     /** Shape of the fade over a beam's life. */
     fade: BeamFade;
     /** How the beam extends: 0 = full length instantly, 1 = grows out over life. */
-    rise: number;
+    /** Seconds to grow from nothing to the full length. */
+    riseSeconds: number;
     riseEase: BeamEase;
-    /** Fraction of life the growth takes — independent of how much it grows. */
-    riseSpan: number;
-    /** Retracts the beam over its life, so the newest beams are the tallest.
-     *  1 = shrinks away to nothing by the end. */
-    shrink: number;
+    /** Seconds standing at full length before retracting. */
+    holdSeconds: number;
+    /** Seconds to retract from full length back to nothing. */
+    shrinkSeconds: number;
     shrinkEase: BeamEase;
-    /** Seconds to hold at full height after the growth finishes, before
-     *  retracting. Absolute time, so it survives lifetime changes and jitter. */
-    shrinkDelay: number;
-    /** Fraction of life the retraction takes — lower = faster collapse. */
-    shrinkSpan: number;
     /** Fraction of the beam nearest the tip that stays lit (a comet trail). */
     trail: number;
     /** Lifts the beam's base off the surface. */
@@ -157,7 +152,8 @@ export type GlobeStyle = {
     direction: "out" | "in";
     jitterHue: number; // 0..1 per-event hue variation
     jitterLength: number; // 0..1 per-event length variation
-    jitterLife: number; // 0..1 per-event lifetime variation
+    /** 0..1 per-event variation, scaling the whole grow/hold/shrink timeline. */
+    jitterLife: number;
     /** sdk = colour per SDK family (the leaderboard colours);
      *  fixed = one colour for every event. */
     colorMode: "sdk" | "fixed";
@@ -166,7 +162,6 @@ export type GlobeStyle = {
     lengthByIntensity: number;
     size: number; // sprite size for dot/ring/burst/halo
     opacity: number;
-    lifetime: number;
     additive: boolean;
     dimFactor: number;
     brightness: number;
@@ -366,13 +361,11 @@ export const DEFAULT_STYLE: GlobeStyle = {
     hideEndOn: 0.75,
     widthTaper: 0.6,
     fade: "linear",
-    rise: 0.35,
+    riseSeconds: 1,
     riseEase: "easeOut",
-    riseSpan: 0.3,
-    shrink: 0,
+    holdSeconds: 0.4,
+    shrinkSeconds: 1.4,
     shrinkEase: "linear",
-    shrinkDelay: 0,
-    shrinkSpan: 1,
     trail: 1,
     offset: 0,
     flicker: 0,
@@ -389,7 +382,6 @@ export const DEFAULT_STYLE: GlobeStyle = {
     lengthByIntensity: 0.14,
     size: 0.05,
     opacity: 1,
-    lifetime: 2.2,
     additive: false,
     dimFactor: 0.05,
     brightness: 1,
@@ -525,7 +517,7 @@ export const PRESETS: Record<string, GlobeStyle> = {
     beams: {
       visible: true, style: "dot", colorMode: "sdk", color: "#ffb347",
       length: 0.1, lengthByIntensity: 0.14, size: 0.039, opacity: 0.8,
-      lifetime: 3.6, additive: false, dimFactor: 0.03, brightness: 2.35, grow: 1,
+      additive: false, dimFactor: 0.03, brightness: 2.35, grow: 1,
     },
     effects: {
       vignette: { enabled: true, darkness: 0.41, offset: 0 },
@@ -567,7 +559,7 @@ export const PRESETS: Record<string, GlobeStyle> = {
     beams: {
       visible: true, style: "line", colorMode: "sdk", color: "#ffb347",
       length: 0.15, lengthByIntensity: 0, size: 0.039, opacity: 1,
-      lifetime: 8, additive: false, dimFactor: 0.01, brightness: 2.35, grow: 1,
+      additive: false, dimFactor: 0.01, brightness: 2.35, grow: 1,
     },
     effects: {
       vignette: { enabled: true, darkness: 0.69, offset: 0.26 },

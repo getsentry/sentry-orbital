@@ -29,9 +29,9 @@ const barVert = /* glsl */ `
   attribute float iSdk;
   attribute float iIntensity;
   attribute float iSeed;
-  uniform float uTime, uLifetime, uHovered, uDim, uOpacity;
-  uniform float uWidth, uDepth, uTaper, uRise, uRiseEase, uFade;
-  uniform float uShrink, uShrinkEase, uShrinkDelay, uShrinkSpan, uRiseSpan;
+  uniform float uTime, uHovered, uDim, uOpacity;
+  uniform float uWidth, uDepth, uTaper, uRiseEase, uRiseSec, uFade;
+  uniform float uShrinkEase, uHoldSec, uShrinkSec;
   uniform float uFlicker, uFlickerSpeed, uHueJitter, uOffset, uSurface;
   uniform float uLenJitter, uLifeJitter, uInward, uFaceShade, uHideEndOn;
   varying vec3 vColor;
@@ -42,8 +42,16 @@ const barVert = /* glsl */ `
   ${BEAM_COMMON}
   void main() {
     // Per-beam lifetime so a burst doesn't fade in lockstep.
-    float lt = uLifetime * (1.0 + (iSeed - 0.5) * uLifeJitter);
-    float life = (uTime - iSpawn) / max(0.05, lt);
+    // A beam's life IS grow + hold + shrink; there is no separate lifetime for
+    // the three to fit inside. Jitter scales the whole timeline, so the phases
+    // keep their proportions and the durations stay nominal seconds.
+    float jitter = 1.0 + (iSeed - 0.5) * uLifeJitter;
+    float rise = max(0.001, uRiseSec * jitter);
+    float hold = max(0.0, uHoldSec * jitter);
+    float fall = max(0.001, uShrinkSec * jitter);
+    float lt = rise + hold + fall;
+    float age = uTime - iSpawn;
+    float life = age / lt;
     float a = (life < 0.0 || life > 1.0) ? 0.0 : fadeCurve(life, uFade);
     if (uHovered >= 0.0 && abs(iSdk - uHovered) > 0.5) a *= uDim;
     a *= flickerAt(iSeed, uTime, uFlicker, uFlickerSpeed);
@@ -59,19 +67,10 @@ const barVert = /* glsl */ `
     // Grow-in amount and duration are separate. Tying the duration to the
     // amount (as rise * 0.9 used to) meant a beam that grew from nothing also
     // took its whole life doing it, leaving no room to retract afterwards.
-    float rt = clamp(life / max(0.0001, uRiseSpan), 0.0, 1.0);
-    float grow = uRise <= 0.0 ? 1.0 : mix(1.0, easeCurve(rt, uRiseEase), uRise);
-    // shrink: retract as the beam ages, so height reads as age. Start and span
-    // are separate from the amount, so the retraction can be held off and then
-    // run at any speed rather than always taking the whole lifetime.
-    // Hold at full height before retracting. Measured in seconds off this beam's
-    // own lifetime, so the pause stays put when the lifetime or its jitter move,
-    // and counted from where the growth ends rather than from spawn — otherwise
-    // re-tuning the grow-in duration silently eats into the hold.
-    float holdFrac = uShrinkDelay / max(0.05, lt);
-    float shrinkBegin = (uRise > 0.0 ? uRiseSpan : 0.0) + holdFrac;
-    float st = clamp((life - shrinkBegin) / max(0.0001, uShrinkSpan), 0.0, 1.0);
-    float span = grow * (1.0 - uShrink * easeCurve(st, uShrinkEase));
+    // Out of the ground, up to the full length, stand, then back to nothing.
+    float grow = easeCurve(clamp(age / rise, 0.0, 1.0), uRiseEase);
+    float st = easeCurve(clamp((age - rise - hold) / fall, 0.0, 1.0), uShrinkEase);
+    float span = grow * (1.0 - st);
 
     // A local frame around the beam's own axis, so the box is a real solid in
     // world space rather than a quad turned to face the camera.
@@ -130,9 +129,9 @@ const ribbonVert = /* glsl */ `
   attribute float iSdk;
   attribute float iIntensity;
   attribute float iSeed;
-  uniform float uTime, uLifetime, uHovered, uDim, uOpacity;
-  uniform float uWidth, uTaper, uRise, uRiseEase, uRiseSpan, uFade;
-  uniform float uShrink, uShrinkEase, uShrinkDelay, uShrinkSpan;
+  uniform float uTime, uHovered, uDim, uOpacity;
+  uniform float uWidth, uTaper, uRiseEase, uRiseSec, uFade;
+  uniform float uShrinkEase, uHoldSec, uShrinkSec;
   uniform float uFlicker, uFlickerSpeed, uHueJitter, uOffset, uSurface;
   uniform float uLenJitter, uLifeJitter, uInward;
   varying vec3 vColor;
@@ -141,8 +140,16 @@ const ribbonVert = /* glsl */ `
   varying float vSide;
   ${BEAM_COMMON}
   void main() {
-    float lt = uLifetime * (1.0 + (iSeed - 0.5) * uLifeJitter);
-    float life = (uTime - iSpawn) / max(0.05, lt);
+    // A beam's life IS grow + hold + shrink; there is no separate lifetime for
+    // the three to fit inside. Jitter scales the whole timeline, so the phases
+    // keep their proportions and the durations stay nominal seconds.
+    float jitter = 1.0 + (iSeed - 0.5) * uLifeJitter;
+    float rise = max(0.001, uRiseSec * jitter);
+    float hold = max(0.0, uHoldSec * jitter);
+    float fall = max(0.001, uShrinkSec * jitter);
+    float lt = rise + hold + fall;
+    float age = uTime - iSpawn;
+    float life = age / lt;
     float a = (life < 0.0 || life > 1.0) ? 0.0 : fadeCurve(life, uFade);
     if (uHovered >= 0.0 && abs(iSdk - uHovered) > 0.5) a *= uDim;
     a *= flickerAt(iSeed, uTime, uFlicker, uFlickerSpeed);
@@ -154,16 +161,10 @@ const ribbonVert = /* glsl */ `
     vSide = sideSign;
     vColor = hueRotate(iColor, (iSeed - 0.5) * uHueJitter * 3.1416);
 
-    float rt = clamp(life / max(0.0001, uRiseSpan), 0.0, 1.0);
-    float grow = uRise <= 0.0 ? 1.0 : mix(1.0, easeCurve(rt, uRiseEase), uRise);
-    // Hold at full height before retracting. Measured in seconds off this beam's
-    // own lifetime, so the pause stays put when the lifetime or its jitter move,
-    // and counted from where the growth ends rather than from spawn — otherwise
-    // re-tuning the grow-in duration silently eats into the hold.
-    float holdFrac = uShrinkDelay / max(0.05, lt);
-    float shrinkBegin = (uRise > 0.0 ? uRiseSpan : 0.0) + holdFrac;
-    float st = clamp((life - shrinkBegin) / max(0.0001, uShrinkSpan), 0.0, 1.0);
-    float span = grow * (1.0 - uShrink * easeCurve(st, uShrinkEase));
+    // Out of the ground, up to the full length, stand, then back to nothing.
+    float grow = easeCurve(clamp(age / rise, 0.0, 1.0), uRiseEase);
+    float st = easeCurve(clamp((age - rise - hold) / fall, 0.0, 1.0), uShrinkEase);
+    float span = grow * (1.0 - st);
 
     // Sunk slightly, not lifted: burying the base cap can never show a gap
     // between beam and ground, where lifting it by any amount can.
@@ -235,7 +236,8 @@ const spriteVert = /* glsl */ `
   attribute float aIntensity;
   attribute float aSeed;
   attribute vec3 aDir;
-  uniform float uTime, uLifetime, uHovered, uDim, uOpacity, uSize, uPixelScale, uGrow;
+  uniform float uTime, uHovered, uDim, uOpacity, uSize, uPixelScale, uGrow;
+  uniform float uRiseSec, uHoldSec, uShrinkSec;
   uniform float uFade, uFlicker, uFlickerSpeed, uHueJitter, uOffset, uLifeJitter, uSurface;
   varying vec3 vColor;
   varying float vAlpha;
@@ -243,7 +245,8 @@ const spriteVert = /* glsl */ `
   varying float vSeed;
   ${BEAM_COMMON}
   void main() {
-    float lt = uLifetime * (1.0 + (aSeed - 0.5) * uLifeJitter);
+    float jitter = 1.0 + (aSeed - 0.5) * uLifeJitter;
+    float lt = max(0.05, (uRiseSec + uHoldSec + uShrinkSec) * jitter);
     float raw = (uTime - aSpawn) / max(0.05, lt);
     float life = clamp(raw, 0.0, 1.0);
     vLife = life;
@@ -407,7 +410,8 @@ export function Beams({
     sg.boundingSphere = new THREE.Sphere(new THREE.Vector3(), R * 4);
 
     const shared = () => ({
-      uTime: { value: 0 }, uLifetime: { value: 2.2 }, uHovered: { value: -1 },
+      uTime: { value: 0 }, uHovered: { value: -1 },
+      uRiseSec: { value: 1 }, uHoldSec: { value: 0.4 }, uShrinkSec: { value: 1.4 },
       uDim: { value: 0.05 }, uOpacity: { value: 1 }, uBrightness: { value: 1 },
       uFade: { value: 0 }, uFlicker: { value: 0 }, uFlickerSpeed: { value: 8 },
       uHueJitter: { value: 0 }, uOffset: { value: 0 }, uLifeJitter: { value: 0 },
@@ -418,9 +422,7 @@ export function Beams({
       uniforms: {
         ...shared(),
         uWidth: { value: 0.006 }, uTaper: { value: 0.6 }, uTrail: { value: 1 },
-        uRise: { value: 0.35 }, uRiseEase: { value: 1 },
-        uShrink: { value: 0 }, uShrinkEase: { value: 0 },
-        uShrinkDelay: { value: 0 }, uShrinkSpan: { value: 1 }, uRiseSpan: { value: 0.3 },
+        uRiseEase: { value: 1 }, uShrinkEase: { value: 0 },
         uDepth: { value: 1 }, uFaceShade: { value: 0.35 }, uHideEndOn: { value: 0.75 },
         uSoftness: { value: 0.5 }, uLenJitter: { value: 0 }, uInward: { value: 0 },
       },
@@ -481,7 +483,7 @@ export function Beams({
 
     const applyShared = (u: Record<string, THREE.IUniform>) => {
       u.uTime.value = t;
-      u.uLifetime.value = b.lifetime;
+
       u.uDim.value = b.dimFactor;
       u.uOpacity.value = b.opacity;
       u.uBrightness.value = b.brightness;
@@ -498,6 +500,9 @@ export function Beams({
       const gs = styleRef.current.globe;
       u.uSurface.value = R * gs.radiusScale + (gs.mode === "relief" ? gs.relief : 0);
       u.uLifeJitter.value = b.jitterLife;
+      u.uRiseSec.value = b.riseSeconds;
+      u.uHoldSec.value = b.holdSeconds;
+      u.uShrinkSec.value = b.shrinkSeconds;
     };
     applyShared(state.ribbonMat.uniforms);
     applyShared(state.spriteMat.uniforms);
@@ -506,12 +511,12 @@ export function Beams({
     ru.uWidth.value = b.width;
     ru.uTaper.value = b.widthTaper;
     ru.uTrail.value = b.trail;
-    ru.uRise.value = b.rise;
+
     ru.uRiseEase.value = EASE_INDEX[b.riseEase] ?? 1;
-    ru.uShrink.value = b.shrink;
-    ru.uRiseSpan.value = b.riseSpan;
-    ru.uShrinkDelay.value = b.shrinkDelay;
-    ru.uShrinkSpan.value = b.shrinkSpan;
+
+
+
+
     ru.uDepth.value = b.depthRatio;
     ru.uFaceShade.value = b.faceShade;
     ru.uHideEndOn.value = b.hideEndOn;

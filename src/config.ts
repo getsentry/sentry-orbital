@@ -1,5 +1,3 @@
-import type { Category } from "./types";
-
 // One place for every tunable. Source selection is env-driven so nothing else in
 // the app needs to know whether data is synthetic or real:
 //   VITE_EVENT_SOURCE=synthetic | real   (default: synthetic)
@@ -19,12 +17,10 @@ export const config = {
   coverageShare: 0.16,
   eventsPerSecond: 95, // baseline; the generator breathes/bursts around this
 
-  // Pulse lifetimes (seconds) per category — temporary lights, never pins
-  lifetimes: { error: 1.8, span: 3.4, replay: 3.8, profile: 2.4 } as Record<Category, number>,
-
-  // GPU ring-buffer capacity. Sized so the longest beam lifetime (60s) still
-  // holds every beam at a heavy event rate — 16k wrapped after ~55s at 300/s,
-  // silently recycling slots and cutting beams short.
+  // GPU ring-buffer capacity. A beam lives for grow + hold + shrink, which the
+  // dev panel caps at 100s total, so this has to hold 100s of events at a heavy
+  // rate or the ring wraps and silently cuts live beams short. 300/s x 100s is
+  // 30k, comfortably inside this.
   maxPulses: 65536,
 
   // Presentation
