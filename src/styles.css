@@ -1007,16 +1007,48 @@ canvas {
   text-align: center;
 }
 
-/* Narrow viewports: shed the header's optional fields, then the right-hand
-   stack, before anything gets clipped. */
-@media (max-width: 1100px) {
-  .term-col-r {
-    display: none;
+/* Short viewports: the left column is four stacked panels and runs out of room
+   below roughly 860px. Tighten the leading first — the 14px floor is on glyph
+   size, not line spacing — and then drop the focus card, which is the one panel
+   whose job survives without it: hovering still highlights the row and still
+   filters the globe. The region figures next to it exist nowhere else. */
+@media (max-height: 860px) {
+  :root {
+    --lh: 1.25;
   }
-  .tbar-l {
+  .focus-card {
     display: none;
   }
 }
+
+/* Narrow viewports: shed the right-hand stack before anything gets clipped.
+   The two columns plus their gap measure ~720px, so with the display's own
+   insets they stop fitting around 845px — this sits well clear of that while
+   still letting a 1024-wide laptop keep its event stream, which the old 1100
+   threshold took away a full 250px early. */
+@media (max-width: 1000px) {
+  .term-col-r {
+    display: none;
+  }
+}
+
+/* The command row only floats between the two bottom cards while the gap they
+   leave can actually hold it. That gap is `vw - 843` — the display's insets
+   plus both column widths — and the row measures 267px with all three commands
+   present, so it stops fitting around 1130px. Below that it goes back into the
+   column's flow and takes a line of its own, which is correct at every width
+   down to a phone.
+
+   Worth recomputing if a column's cell count changes, or if a fourth command is
+   ever added: the old threshold was 1100, which left the row 10px short of its
+   own width in local builds, where `C CONFIG` is the extra one. */
+@media (max-width: 1140px) {
+  .kbar {
+    position: static;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 620px) {
   :root {
     --tube-r: 8px;
@@ -1024,5 +1056,28 @@ canvas {
   }
   .crt-screw {
     display: none;
+  }
+  /* Every pixel here decides whether a card fits or gets sliced, because the
+     grid cannot reflow to absorb the loss. */
+  .term {
+    inset: calc(var(--screen-t) + 10px) calc(var(--screen-t) + 6px)
+      calc(var(--screen-b) + 8px);
+  }
+}
+
+/* Below here 44 cells no longer fit at 14px however the insets are trimmed, and
+   the rows are fixed-width text with nothing to give: 44 is already the floor
+   for what the leaderboard has to say. So the cell steps down instead, and the
+   whole grid — panel widths in `ch`, row heights, the command row — follows it.
+   The 14px floor is a desktop reading distance; at 2-3x device pixels and arm's
+   length these are still comfortably legible. */
+@media (max-width: 420px) {
+  :root {
+    --cell: 12px;
+  }
+}
+@media (max-width: 370px) {
+  :root {
+    --cell: 11px;
   }
 }
