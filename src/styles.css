@@ -549,12 +549,27 @@ canvas {
   overflow: hidden;
   background: #0a0400;
   font-family: "Departure Mono", monospace;
-  font-size: var(--cell);
-  line-height: var(--lh);
-  color: var(--neon);
   -webkit-font-smoothing: none;
   font-smooth: never;
   white-space: pre;
+  color: var(--neon);
+  /* One cell size for the whole screen, so the lockup, the band and the log
+     scale together and never fall out of alignment with each other. Bounded by
+     height first — the column is 76 cells wide and the art is tall, so short
+     viewports are what runs out of room. */
+  /* The column is a known number of cells tall — 19 mark rows at twice the cell,
+     the wordmark, the band and the log come to about 74 of them — so
+     the cell size is derived from the height available rather than guessed at.
+     Dividing the tube's height by 82 leaves the lockup a margin at both ends
+     instead of running it to the edge, which is what clipped the log on a short
+     window.
+
+     Rounded to whole pixels: the mark is half-block glyphs stacked at
+     line-height 1, and at a fractional cell the half rows land on subpixel
+     boundaries and the strokes come apart into visible banding. The unrounded
+     value stands first, for anything without stepped-value functions. */
+  --bc: min(clamp(5px, calc((100vh - 60px) / 82), 12px), 1.45vw);
+  --bc: round(down, min(clamp(5px, calc((100vh - 60px) / 82), 12px), 1.45vw), 1px);
   transition:
     opacity 0.6s ease,
     filter 0.6s ease;
@@ -601,21 +616,34 @@ canvas {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(10px, 1.8vmin, 22px);
-  padding: 4vmin;
+}
+/* The grid everything is measured against: 76 cells at the boot cell size. The
+   mark is 38 characters at twice that, which is the same width — so the whole
+   screen is one left edge and one right edge, with nothing centred by hand. */
+.boot-col {
+  font-size: var(--bc);
+  line-height: 1.5;
+  width: 76ch;
+  text-shadow:
+    0 0 6px rgba(255, 122, 24, 0.55),
+    0 0 20px rgba(255, 77, 0, 0.25);
 }
 
-/* The mark. line-height 1 so the block rows fuse into solid strokes, and a
-   four-stop shadow so the glow blooms the way phosphor does rather than
-   sitting as a flat halo. */
-.boot-logo {
+/* The mark and the wordmark. line-height 1 so the block rows fuse into solid
+   strokes, and a four-stop shadow so the glow blooms the way phosphor does
+   rather than sitting as a flat halo. */
+.boot-mark,
+.boot-word {
   margin: 0;
-  font-size: calc(var(--cell) * 2);
-  text-align: center;
   line-height: 1;
+  /* `pre` carries `font-family: monospace` from the user-agent sheet, and a rule
+     on the element beats anything inherited — so the art was being set in the
+     browser's default mono while the log used the real one. Same character
+     counts, different advance widths, and the log came out wider than the mark
+     it was supposed to line up with. */
+  font-family: inherit;
   color: var(--neon-hi);
   text-shadow:
     0 0 3px rgba(255, 200, 140, 0.95),
@@ -623,6 +651,20 @@ canvas {
     0 0 28px rgba(255, 77, 0, 0.55),
     0 0 64px rgba(255, 60, 0, 0.32);
   animation: boot-warm 1.5s steps(1, end) 1;
+}
+.boot-mark {
+  font-size: calc(var(--bc) * 2);
+}
+.boot-word {
+  /* min-height comes from the row count in JS, so the reserved space can't fall
+     out of step with the art. */
+  margin-top: calc(var(--bc) * 1.2);
+  /* Half the mark's pixel size, so it takes half the bloom — the mark's four
+     stops on letters this fine just fill the counters in. */
+  text-shadow:
+    0 0 2px rgba(255, 200, 140, 0.9),
+    0 0 8px rgba(255, 122, 24, 0.7),
+    0 0 22px rgba(255, 77, 0, 0.4);
 }
 /* the mains settling — a couple of dropouts, then steady */
 @keyframes boot-warm {
@@ -640,25 +682,28 @@ canvas {
   }
 }
 
-.boot-sub {
-  letter-spacing: 0.32em;
+/* Rule, fields, rule — the banner a machine prints once it knows what it is. */
+.boot-band {
+  margin: calc(var(--bc) * 2) 0 calc(var(--bc) * 1.2);
+  line-height: 1.5;
+  /* see .boot-mark — `pre` needs the family said out loud */
+  font-family: inherit;
   color: var(--neon);
-  text-shadow: 0 0 10px rgba(255, 122, 24, 0.6);
   opacity: 0;
-  transition: opacity 0.5s ease;
+  transition: opacity 0.45s ease;
 }
-.boot-sub.is-in {
+.boot-band.is-in {
   opacity: 1;
 }
 
 .boot-log {
+  /* Height for the whole script from the first frame: a log that grows pushes
+     the lockup up the screen line by line, and the drift is the first thing the
+     eye follows instead of the words. */
   text-align: left;
-  text-shadow:
-    0 0 6px rgba(255, 122, 24, 0.55),
-    0 0 20px rgba(255, 77, 0, 0.25);
 }
 .boot-line {
-  min-height: 1.6em;
+  min-height: 1.5em;
 }
 .boot-ok {
   color: var(--neon-hi);
@@ -672,14 +717,6 @@ canvas {
   background: var(--neon-hi);
   box-shadow: 0 0 8px rgba(255, 122, 24, 0.8);
   animation: blink 1s steps(1, end) infinite;
-}
-
-/* The mark is 19 rows — at 2x the cell that plus the POST log overruns the
-   centred column on a short viewport, so step it down rather than let it clip. */
-@media (max-height: 740px) {
-  .boot-logo {
-    font-size: var(--cell);
-  }
 }
 
 /* ---------- performance HUD (opens with the config panel) ---------- */

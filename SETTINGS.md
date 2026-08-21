@@ -155,6 +155,51 @@ boundary flipping between two settings, and a resolution change is visible.
 `?quality=low`, `?quality=medium` or `?quality=high` forces a tier, which is
 the only practical way to see what someone else's device is seeing.
 
+## Boot screen
+
+The cold-start sequence: the tube scans open, the mark draws itself a row at a
+time with the wordmark landing under it, the header band fades in, and a POST
+log types out. It holds on `READY.` for two seconds before dissolving into the
+scene — a machine that finishes booting and vanishes in the same frame reads as
+a cut rather than as a handover. It plays out in full; there is no skip.
+
+**Everything on it is 76 character cells wide.** The mark is 38 columns at twice
+the cell, which is the same 76; the wordmark is 76 at the cell; so is the band
+and so is every line of the log. Nothing is centred by eye — the elements line
+up because they are all the same string length. Two things follow from that:
+
+- Add a POST line with `post(label, status)` rather than by hand. It sizes the
+  dot leader so the bracket lands in the same column as every other line's; a
+  hand-written leader is just punctuation.
+- Any `pre` on this screen has to say `font-family: inherit`. The user-agent
+  sheet puts `font-family: monospace` on `pre`, and a rule on the element beats
+  an inherited one, so the art silently renders in the browser's default mono —
+  same character counts as the log, a different advance width, and the log comes
+  out wider than the mark it is supposed to line up with.
+- The wordmark is mixed case — `sentryOS`, the product's own name rather than a
+  shout — drawn on eighteen pixel rows: a cap line for the O and S, an x-height
+  starting a third of the way down, two rows of descender for the y. Letter
+  widths are `6 6 6 5 5 6 8 6` tracked 4 columns apart, which comes to 76
+  exactly. Changing the letterforms means re-fitting to that total.
+
+The whole screen scales off one custom property, `--bc`, so the lockup and the
+log can never drift out of step. The column is a known height in cells — the 19
+mark rows at twice the cell, plus the wordmark, band, log and hint, come to
+about 77 — so `--bc` is derived by dividing the tube's height by 82 rather than
+guessed at. The spare five cells are the margin at either end; without them the
+lockup runs to the edge of the glass and the tail of the log falls off a short
+window. It is rounded to whole pixels, because the mark is half-block glyphs at
+`line-height: 1` and a fractional cell puts the half rows on subpixel
+boundaries, which breaks the strokes into visible banding.
+
+Both art blocks reserve their full height from the first frame, so the mark
+draws into a fixed box. Sized as it goes, the column grows row by row and the
+whole composition creeps up the screen while it draws.
+
+Every figure the log reports is real: the city count, the SDK family count, the
+ring-buffer size and the feed it found are all read from the same config the app
+starts with, so the screen can't claim something the app then contradicts.
+
 ## Controls appear only when they apply
 
 The panel hides anything that wouldn't do anything in the current setup, so if a
