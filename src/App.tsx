@@ -1,24 +1,52 @@
-import { Leva } from "leva";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { config } from "./config";
 import { EventBuffer } from "./data/eventBuffer";
 import { createEventSource } from "./data/sourceFactory";
-import { DevPanel, loadSavedStyle } from "./dev/DevPanel";
+import { IS_DEV, loadSavedStyle } from "./dev/savedStyle";
 import { Scene } from "./render/Scene";
 import { DEFAULT_STYLE, withDefaults, type GlobeStyle } from "./style";
 import type { SdkFamily } from "./types";
 import { Chrome } from "./ui/Chrome";
-import { PerfHud } from "./ui/PerfHud";
+
+// Behind the DEV flag rather than merely lazy: with `import.meta.env.DEV`
+// substituted as `false`, this whole expression is dead code, so Rollup drops
+// the dynamic import and never emits the chunk. leva and the panel are not
+// shipped to the deployed page at all — not even as a fetchable asset.
+const DevTools = import.meta.env.DEV ? lazy(() => import("./dev/DevTools")) : null;
+// Same treatment for the diagnostics readout — it is dev tooling too, and
+// unreachable is a weaker promise than not shipped.
+const PerfHud = import.meta.env.DEV ? lazy(() => import("./ui/PerfHud")) : null;
 
 export default function App() {
   const [hoveredSdk, setHoveredSdk] = useState<SdkFamily | null>(null);
   // Start from whatever was last tinkered into localStorage, else the defaults.
   const initialStyle = useMemo(() => withDefaults(loadSavedStyle() ?? DEFAULT_STYLE), []);
   const [style, setStyle] = useState<GlobeStyle>(initialStyle);
-  const [dev, setDev] = useState(() => new URLSearchParams(location.search).has("dev"));
-  const [perf, setPerf] = useState(() => new URLSearchParams(location.search).has("perf"));
+  // The style panel is a local development tool: it exposes every internal
+  // knob and persists to localStorage, neither of which belongs on a link
+  // handed to other people.
+  const [dev, setDev] = useState(
+    () => IS_DEV && new URLSearchParams(location.search).has("dev"),
+  );
+  // Gated too: the diagnostics HUD is dev tooling, and `?perf` used to open it
+  // on any deployment.
+  const [perf, setPerf] = useState(
+    () => IS_DEV && new URLSearchParams(location.search).has("perf"),
+  );
 
-  // `D` toggles the style panel so it can be opened without editing the URL.
+  // One command opens the workbench: the style panel and the diagnostics
+  // readout are useful together and fiddly to line up separately. Read through
+  // a ref rather than a state updater, so both land on the same value without
+  // one setter having to reach into the other's update.
+  const devRef = useRef(dev);
+  devRef.current = dev;
+  const toggleConfig = useCallback(() => {
+    const next = !devRef.current;
+    setDev(next);
+    setPerf(next);
+  }, []);
+
+  // `C` toggles it without editing the URL.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // `closest` only exists on Elements — a keydown dispatched at window or
@@ -27,12 +55,13 @@ export default function App() {
       const typing =
         t instanceof HTMLElement && t.closest("input,textarea,[contenteditable]");
       if (typing) return;
-      if (e.key === "d" || e.key === "D") setDev((x) => !x);
-      if (e.key === "m" || e.key === "M") setPerf((x) => !x);
+      const k = e.key.toLowerCase();
+      // `d` kept alongside `c` for the muscle memory it used to serve.
+      if (IS_DEV && (k === "c" || k === "d")) toggleConfig();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [toggleConfig]);
 
   // The renderer/UI never learn which concrete source this is — see
   // sourceFactory (flip VITE_EVENT_SOURCE=real to swap in the API adapter).
@@ -46,9 +75,19 @@ export default function App() {
     <>
       <Scene buffer={buffer} hoveredSdk={hoveredSdk} style={style} />
       <Chrome buffer={buffer} hoveredSdk={hoveredSdk} setHoveredSdk={setHoveredSdk} />
-      {perf && <PerfHud buffer={buffer} />}
-      <Leva hidden={!dev} collapsed={false} titleBar={{ title: "Globe style — press D" }} />
-      {dev && <DevPanel initial={initialStyle} onChange={(s) => setStyle(withDefaults(s))} />}
+      {perf && PerfHud && (
+        <Suspense fallback={null}>
+          <PerfHud buffer={buffer} />
+        </Suspense>
+      )}
+      {dev && DevTools && (
+        <Suspense fallback={null}>
+          {/* `style`, not `initialStyle`: the panel is unmounted while closed,
+              so seeding it from the page-load style would silently revert every
+              edit made in this session each time it is reopened. */}
+          <DevTools initial={style} onChange={(s) => setStyle(withDefaults(s))} />
+        </Suspense>
+      )}
     </>
   );
 }

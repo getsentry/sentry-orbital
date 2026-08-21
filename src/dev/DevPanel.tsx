@@ -1,32 +1,9 @@
 import { button, folder, useControls } from "leva";
 import { useEffect, useRef } from "react";
 import { DEFAULT_STYLE, PRESETS, type GlobeStyle } from "../style";
+import { LS_KEY } from "./savedStyle";
 import { runSelfTest } from "./selfTest";
 
-// v2: the map-alignment knobs were removed when the mask became true
-// equirectangular — a stale v1 config would mis-project the whole globe.
-const LS_KEY = "orbital.style.v2";
-
-export function loadSavedStyle(): GlobeStyle | null {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return null;
-    // Merge over defaults so configs saved before a new knob existed still load.
-    return deepMerge(DEFAULT_STYLE, JSON.parse(raw)) as GlobeStyle;
-  } catch {
-    return null;
-  }
-}
-
-function deepMerge<T>(base: T, over: unknown): T {
-  if (typeof base !== "object" || base === null || Array.isArray(base)) {
-    return over === undefined ? base : (over as T);
-  }
-  const out: Record<string, unknown> = { ...(base as Record<string, unknown>) };
-  const o = (over ?? {}) as Record<string, unknown>;
-  for (const k of Object.keys(out)) out[k] = deepMerge((base as Record<string, unknown>)[k], o[k]);
-  return out as T;
-}
 
 // --- visibility predicates -------------------------------------------------
 // leva calls `render(get)` per control; `get` takes a "Folder.key" path. These
@@ -51,7 +28,8 @@ function toStyle(v: Record<string, any>): GlobeStyle {
     background: { color: v.bgColor },
     globe: {
       visible: v.gVisible, mode: v.gMode, material: v.gMaterial, color: v.gColor,
-      landColor: v.gLandColor, emissive: v.gEmissive, emissiveIntensity: v.gEmissiveIntensity,
+      landColor: v.gLandColor,
+      emissive: v.gEmissive, emissiveIntensity: v.gEmissiveIntensity,
       roughness: v.gRoughness, metalness: v.gMetalness, clearcoat: v.gClearcoat,
       clearcoatRoughness: v.gClearcoatRoughness, opacity: v.gOpacity, wireframe: v.gWireframe,
       flatShading: v.gFlatShading, radiusScale: v.gRadiusScale, segments: v.gSegments,
@@ -143,7 +121,8 @@ function toControls(s: GlobeStyle): Record<string, any> {
   return {
     bgColor: s.background.color,
     gVisible: s.globe.visible, gMode: s.globe.mode, gMaterial: s.globe.material,
-    gColor: s.globe.color, gLandColor: s.globe.landColor, gEmissive: s.globe.emissive,
+    gColor: s.globe.color, gLandColor: s.globe.landColor,
+    gEmissive: s.globe.emissive,
     gEmissiveIntensity: s.globe.emissiveIntensity, gRoughness: s.globe.roughness,
     gMetalness: s.globe.metalness, gClearcoat: s.globe.clearcoat,
     gClearcoatRoughness: s.globe.clearcoatRoughness, gOpacity: s.globe.opacity,

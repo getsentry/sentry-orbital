@@ -1,6 +1,14 @@
 # Globe style settings
 
-Open with **`?dev`** in the URL or press **D**. Edits auto-save to localStorage.
+Open with **`?dev`** in the URL or press **C**, which brings up the diagnostics
+readout alongside it. Edits auto-save to localStorage.
+
+**Local only.** The panel is a development tool, not part of the deployed page:
+it exposes every internal knob and writes to localStorage. Both **C** and
+**`?dev`** do nothing unless the page is being served from localhost, and the
+panel's code (leva included, ~75 kB gzipped) sits in a separate chunk that a
+visitor to a deployed link never downloads. Previewing a production build
+locally still gets it, which is when you most want to check the two agree.
 
 ## Camera
 

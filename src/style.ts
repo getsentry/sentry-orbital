@@ -1,4 +1,4 @@
-// Every visual parameter in one place. The dev panel (press D) writes this
+// Every visual parameter in one place. The dev panel (press C) writes this
 // shape, and the renderer reads it — so a config copied out of the panel can be
 // pasted straight back in here as the new default.
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { IS_DEV } from "../dev/savedStyle";
 import type { EventBuffer } from "../data/eventBuffer";
 import { HISTORY_LENGTH, perfStats, type PerfStats } from "./perfStats";
 
@@ -11,7 +12,7 @@ function fpsColor(fps: number): string {
   return "#ff5064";
 }
 
-export function PerfHud({ buffer }: { buffer: EventBuffer }) {
+export default function PerfHud({ buffer }: { buffer: EventBuffer }) {
   const [s, setS] = useState<PerfStats>(perfStats);
   const [eps, setEps] = useState(0);
   const [total, setTotal] = useState(0);
@@ -73,7 +74,9 @@ export function PerfHud({ buffer }: { buffer: EventBuffer }) {
       <Row k="scene objects" v={fmt(s.sceneObjects)} />
       <Row k="resolution" v={`${fmt(s.width)}×${fmt(s.height)} @${s.dpr}x`} />
 
-      <div className="perf-hint">press M to close</div>
+      {/* C is the only way to close this, and it is local-only — so on a
+          deployed page (reachable via ?perf) the hint would be a lie. */}
+      {IS_DEV && <div className="perf-hint">press C to close</div>}
     </div>
   );
 }
