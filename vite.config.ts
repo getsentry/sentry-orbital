@@ -8,6 +8,12 @@ const BACKEND = process.env.ORBITAL_BACKEND ?? "http://127.0.0.1:7010";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Where main.go serves from (`http.FileServer(http.Dir("static"))`), so a
+    // build lands ready to be served instead of in a `dist/` nothing reads.
+    outDir: "static",
+    emptyOutDir: true,
+  },
   server: {
     host: true,
     port: 5190,

@@ -89,3 +89,18 @@ npm run preview   # serve it on :5190, still proxied to the backend
 > The container build does not work yet. `Dockerfile` expects the frontend under
 > `frontend/` with output at `/static`; it is at the repo root and Vite emits
 > `dist/`. The Go service serves `static/`, which nothing produces.
+
+## Deploy
+
+Push to `master` builds the image and deploys it — nothing here is run by hand.
+
+- **GitHub Actions** (`.github/workflows/build.yml`) builds the Dockerfile, runs
+  a smoke test against the running container, and pushes
+  `ghcr.io/getsentry/sentry-orbital:{nightly,<sha>}`.
+- **GoCD** (`gocd/`) waits for that check by name — *Build and smoke test* — and
+  rolls the image out to the `orbital` container in each US region.
+
+The image is one static Go binary plus the built frontend: `npm run build`
+writes to `static/`, which is the directory `main.go` serves. That is why the
+build output is `static/` and not `dist/` — point it elsewhere and the container
+serves nothing.
