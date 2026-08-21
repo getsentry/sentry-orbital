@@ -37,7 +37,8 @@ export const config = {
   /** Fraction of events drawn from a *uniform* pick across all cities instead
    *  of the weighted pick. Guarantees quiet regions still blink. */
   coverageShare: 0.16,
-  eventsPerSecond: 95, // baseline; the generator breathes/bursts around this
+  eventsPerSecond: 50, // baseline; the generator breathes/bursts around this
+  maxEventsPerSecond: 50, // hard ceiling, storms included
 
   // GPU ring-buffer capacity. A beam lives for grow + hold + shrink, which the
   // dev panel caps at 100s total, so this has to hold 100s of events at a heavy

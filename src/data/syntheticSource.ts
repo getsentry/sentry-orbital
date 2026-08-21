@@ -64,10 +64,13 @@ export class SyntheticEventSource implements EventSource {
         this.storm = {
           city: this.rng.weighted(WEIGHTED),
           until: nowMs + this.rng.range(1400, 3600),
-          extraRate: this.rng.range(140, 340),
+          extraRate: this.rng.range(18, 34),
         };
       }
       if (this.storm) rate += this.storm.extraRate;
+      // Hard ceiling — storms used to add several hundred/sec on top of the
+      // baseline, which put the headline rate far above what it claims.
+      rate = Math.min(config.maxEventsPerSecond, rate);
 
       this.acc += rate * dt;
       let guard = 2000; // never block the frame, even on a huge burst
@@ -146,7 +149,11 @@ export class SyntheticEventSource implements EventSource {
 
     return {
       id: `${this.idCounter++}`,
-      timestamp: new Date(this.t0 + (nowMs - this.t0)).toISOString(),
+      // rAF hands out performance.now() values — milliseconds since the page
+      // loaded, not since the epoch. Stamping those straight into a Date put
+      // every event in January 1970, which the stream panel then rendered as
+      // the same wall-clock time on every row.
+      timestamp: new Date(performance.timeOrigin + nowMs).toISOString(),
       latitude: lat,
       longitude: lng,
       countryCode: city.cc,
