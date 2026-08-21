@@ -1,0 +1,33 @@
+{
+  "name": "orbital",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5190",
+    "build": "vite build",
+    "preview": "vite preview --port 5190",
+    "backend": "docker run --rm --name orbital-be -p 7010:7000 -v \"$PWD\":/src -w /src golang:1.25-alpine sh -c 'go run main.go -test -host 0.0.0.0'",
+    "backend:native": "go run main.go -test -http-port 7010"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.114.3",
+    "@react-three/fiber": "^8.17.10",
+    "@react-three/postprocessing": "^2.19.1",
+    "leva": "^0.9.36",
+    "postprocessing": "^6.39.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "topojson-client": "^3.1.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "world-atlas": "^2.0.2"
+  }
+}

@@ -1,80 +1,106 @@
-# Orbital
+# Sentry Orbital
 
-Orbital is a geographical visualization of Sentry data — a real-time 3D globe showing error events as they happen worldwide.
+A globe that draws a beam for every event, with a terminal overlay reading out
+throughput, SDK families and regions.
 
-## Architecture
-
-- **Go backend** (`main.go`): Receives UDP events, rate-limits them (~50/s max), and fans out via SSE to connected browsers
-- **React frontend** (`frontend/`): Vite + React + TypeScript app using [cobe](https://github.com/shuding/cobe) for the WebGL globe
-
-## Development
-
-### Prerequisites
-
-- Go 1.25+
-- [Bun](https://bun.sh) (for the frontend)
-
-### Running locally
-
-You'll need two terminal windows:
-
-**Terminal 1 — Go backend with test events:**
-```bash
-go run main.go -test
-```
-
-This starts the backend on `:7000` with a test event generator that simulates real-world traffic.
-
-**Terminal 2 — Vite dev server:**
-```bash
-cd frontend
-bun install
-bun run dev
-```
-
-This starts the Vite dev server on `:5173` with HMR. API requests (`/stream`, `/healthz`) are proxied to the Go backend.
-
-**Open http://localhost:5173** to see the live globe with test events.
-
-### Production build
+## Run it
 
 ```bash
-cd frontend
-bun run build   # outputs to ../static/
-cd ..
-go run main.go -test
+npm install
+npm run dev
 ```
 
-Open http://localhost:7000 to see the production build served by Go.
+<http://localhost:5190>. That is everything — it runs on synthetic data.
 
-## Docker
+## Add the live feed
+
+In a second terminal:
 
 ```bash
-docker build -t sentry-orbital .
-docker run --rm -p 7000:7000 -p 5556:5556/udp -e HOST=0.0.0.0 sentry-orbital
+npm run backend          # Docker, nothing else to install
+npm run backend:native   # or natively, needs Go 1.25
 ```
 
-## Configuration
+Reload the page. It finds the backend and switches over on its own.
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-host` | `127.0.0.1` | Listen address |
-| `-http-port` | `7000` | HTTP port |
-| `-udp-port` | `5556` | UDP port for event ingest |
-| `-sample-rate` | `1.0` | Fraction of UDP events eligible to forward (0.0–1.0) |
-| `-max-forward-rate` | `50` | Max events/sec forwarded to SSE clients (`0` = unlimited) |
-| `-test` | `false` | Enable test event generator |
+## Data source
 
-`/stats` exposes cumulative UDP `received` / `forwarded` / `dropped` counters for diagnosing ingest outages.
+`auto` in development: synthetic until a backend answers `/healthz`, then live.
+It does not switch back if the stream drops.
 
-## UDP Event Format
+Force one, dev only:
 
-Events are sent as JSON arrays:
-```json
-[37.8, -122.4, 1700000000000, "javascript"]
 ```
-Format: `[latitude, longitude, timestamp_ms, platform]`
+?source=synthetic   ?source=real   ?source=auto
+```
 
-## License
+or `VITE_EVENT_SOURCE=synthetic|real|auto` before `npm run dev`.
 
-Apache 2.0
+A production build is hard-wired to the live feed — no override, and the
+synthetic generator is not in the bundle.
+
+## Backend
+
+Serves `/stream` (SSE), `/healthz` and `/stats` on `:7010`. Vite proxies those
+three paths.
+
+`npm run backend:native` is `go run main.go`, so it takes any flag:
+
+| flag | default | |
+| --- | --- | --- |
+| `-host` | `127.0.0.1` | listen address |
+| `-http-port` | `7000` | HTTP port (npm scripts publish it on 7010) |
+| `-udp-port` | `5556` | UDP port |
+| `-test` | off | generate test events internally |
+| `-sample-rate` | `1.0` | fraction of datagrams eligible to forward |
+| `-max-forward-rate` | `50` | ceiling on events/sec sent to clients |
+
+Both npm scripts pass `-test`. Port 7010 rather than 7000 because macOS AirPlay
+squats on 7000; point the frontend elsewhere with
+`ORBITAL_BACKEND=http://host:port npm run dev`.
+
+The Docker script publishes only the HTTP port. For a real producer sending
+UDP, publish that too:
+
+```bash
+docker run --rm -p 7010:7000 -p 5556:5556/udp \
+  -v "$PWD":/src -w /src golang:1.25-alpine \
+  sh -c 'go run main.go -host 0.0.0.0'
+```
+
+## In the browser
+
+| | |
+| --- | --- |
+| `C` or `?dev` | style panel + diagnostics — localhost only |
+| `F` | hide the readouts |
+| `S` | mute |
+| `?quality=low\|medium\|high` | force a rendering tier |
+
+Every style control is documented in [SETTINGS.md](SETTINGS.md).
+
+## Build
+
+```bash
+npm run build     # -> dist/
+npm run preview   # serve it on :5190, still proxied to the backend
+```
+
+> The container build does not work yet. `Dockerfile` expects the frontend under
+> `frontend/` with output at `/static`; it is at the repo root and Vite emits
+> `dist/`. The Go service serves `static/`, which nothing produces.
+
+## Deploy
+
+Push to `master` builds the image and deploys it — nothing here is run by hand.
+
+- **GitHub Actions** (`.github/workflows/build.yml`) builds the Dockerfile, runs
+  a smoke test against the running container, and pushes
+  `ghcr.io/getsentry/sentry-orbital:{nightly,<sha>}`.
+- **GoCD** (`gocd/`) waits for that check by name — *Build and smoke test* — and
+  rolls the image out to the `orbital` container in each US region.
+
+The image is one static Go binary plus the built frontend: `npm run build`
+writes to `static/`, which is the directory `main.go` serves. That is why the
+build output is `static/` and not `dist/` — point it elsewhere and the container
+serves nothing.

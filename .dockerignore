@@ -1,4 +1,11 @@
 .git/
+.github/
+.claude/
+gocd/
+node_modules/
+dist/
+static/
 .dockerignore
 LICENSE
 README.md
+SETTINGS.md

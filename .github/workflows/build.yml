@@ -62,8 +62,12 @@ jobs:
           [ "$HEALTH" = "ok" ] || (echo "healthz returned: $HEALTH" && exit 1)
           # /stats must return ingest counters JSON
           curl -sf http://localhost:7000/stats | grep -q 'udp_received' || (echo "stats missing udp_received" && exit 1)
-          # / must return 200 and contain the frontend
-          curl -sf http://localhost:7000/ | grep -q 'Sentry Live' || (echo "index page missing expected content" && exit 1)
+          # / must return 200 and be the built frontend, not a bare index:
+          # the asset it names has to be in the image and served too.
+          curl -sf http://localhost:7000/ | grep -q '<title>Orbital</title>' || (echo "index page missing expected content" && exit 1)
+          ASSET=$(curl -sf http://localhost:7000/ | grep -o '/assets/index-[^"]*\.js' | head -1)
+          [ -n "$ASSET" ] || (echo "index page names no built bundle" && exit 1)
+          curl -sfI "http://localhost:7000$ASSET" > /dev/null || (echo "bundle $ASSET not served" && exit 1)
           docker stop orbital-smoke
 
       - name: Push to GHCR
