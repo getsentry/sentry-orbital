@@ -265,8 +265,6 @@ export type GlobeStyle = {
      *  screen. 0 = the raw fov below, 1 = near-orthographic. */
     flatten: number;
     distance: number;
-    minDistance: number;
-    maxDistance: number;
     tilt: number;
   };
 };
@@ -464,8 +462,6 @@ export const DEFAULT_STYLE: GlobeStyle = {
     fov: 40,
     flatten: 0.55,
     distance: 3.6,
-    minDistance: 2.5,
-    maxDistance: 5.5,
     tilt: 0.6,
   },
 };

@@ -133,8 +133,7 @@ function toStyle(v: Record<string, any>): GlobeStyle {
       thickness: v.hlThickness, size: v.hlSize, opacity: v.hlOpacity, additive: v.hlAdditive,
     },
     camera: {
-      fov: v.cFov, flatten: v.cFlatten, distance: v.cDistance, minDistance: v.cMin, maxDistance: v.cMax,
-      tilt: v.cTilt,
+      fov: v.cFov, flatten: v.cFlatten, distance: v.cDistance, tilt: v.cTilt,
     },
   };
 }
@@ -220,8 +219,7 @@ function toControls(s: GlobeStyle): Record<string, any> {
     hlEnabled: s.halo.enabled, hlColor: s.halo.color, hlCount: s.halo.count,
     hlRadius: s.halo.radius, hlThickness: s.halo.thickness, hlSize: s.halo.size,
     hlOpacity: s.halo.opacity, hlAdditive: s.halo.additive,
-    cFov: s.camera.fov, cFlatten: s.camera.flatten, cDistance: s.camera.distance, cMin: s.camera.minDistance, cMax: s.camera.maxDistance,
-    cTilt: s.camera.tilt,
+    cFov: s.camera.fov, cFlatten: s.camera.flatten, cDistance: s.camera.distance, cTilt: s.camera.tilt,
   };
 }
 
@@ -598,8 +596,6 @@ export function DevPanel({
           label: "flatten (telephoto)",
         },
         cDistance: { value: i.camera.distance, min: 1.5, max: 8, step: 0.05, label: "distance" },
-        cMin: { value: i.camera.minDistance, min: 1.2, max: 6, step: 0.05, label: "zoom min" },
-        cMax: { value: i.camera.maxDistance, min: 2, max: 12, step: 0.05, label: "zoom max" },
         cTilt: { value: i.camera.tilt, min: -2, max: 2, step: 0.05, label: "tilt" },
       },
       { collapsed: true },

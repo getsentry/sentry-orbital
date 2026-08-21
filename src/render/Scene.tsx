@@ -2,6 +2,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { config } from "../config";
 import type { EventBuffer } from "../data/eventBuffer";
 import type { GlobeStyle } from "../style";
 import type { SdkFamily } from "../types";
@@ -10,6 +11,8 @@ import { Effects } from "./Effects";
 import { Globe } from "./Globe";
 import { PerfProbe } from "./PerfProbe";
 import { Starfield } from "./Starfield";
+
+const R = config.globeRadius;
 
 const SHADOW_MAP = {
   basic: THREE.BasicShadowMap,
@@ -34,6 +37,24 @@ function lens(c: GlobeStyle["camera"]) {
 }
 
 /** Drag to rotate + scroll to zoom, clamped to the configured distance range. */
+/** Breathing room around the globe once it is fitted — enough that the limb,
+ *  its atmosphere and the beams standing on it are not flush with the bezel. */
+const FIT_MARGIN = 1.12;
+
+/**
+ * Closest the camera may sit and still have the whole globe inside the frame.
+ *
+ * `fov` is the *vertical* field of view, so a portrait viewport has a much
+ * narrower horizontal one — a globe sized to fill the height then spills past
+ * both edges, which is what made it overflow on a phone. Fitting to whichever
+ * half-angle is smaller solves both orientations with one number.
+ */
+function fitDistance(fovDeg: number, aspect: number, radius: number): number {
+  const vHalf = (fovDeg * Math.PI) / 360;
+  const hHalf = Math.atan(Math.tan(vHalf) * Math.max(1e-3, aspect));
+  return (radius * FIT_MARGIN) / Math.sin(Math.min(vHalf, hHalf));
+}
+
 function Controls({ style }: { style: GlobeStyle }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
@@ -44,10 +65,13 @@ function Controls({ style }: { style: GlobeStyle }) {
     const ctl = new OrbitControls(camera, gl.domElement);
     ctl.target.set(0, 0, 0);
     ctl.enablePan = false;
+    // Drag to turn the globe, but the framing is fixed: zoom was the only way
+    // to break the fit below, and a globe you can push off the edge of the
+    // screen is not worth the control.
+    ctl.enableZoom = false;
     ctl.enableDamping = true;
     ctl.dampingFactor = 0.08;
     ctl.rotateSpeed = 0.5;
-    ctl.zoomSpeed = 0.6;
     ref.current = ctl;
     return () => ctl.dispose();
   }, [camera, gl]);
@@ -58,23 +82,30 @@ function Controls({ style }: { style: GlobeStyle }) {
     const ctl = ref.current;
     if (!ctl) return;
     const L = lens(c);
-    const d = L.distance;
+    const cam = camera as THREE.PerspectiveCamera;
+    const d = Math.max(
+      L.distance,
+      cam.isPerspectiveCamera ? fitDistance(L.fov, cam.aspect, R * style.globe.radiusScale) : 0,
+    );
     const y = Math.max(-d * 0.95, Math.min(d * 0.95, c.tilt * L.scale));
     const horiz = Math.sqrt(Math.max(1e-4, d * d - y * y));
     const az = Math.atan2(camera.position.z, camera.position.x) || 0;
     camera.position.set(Math.cos(az) * horiz, y, Math.sin(az) * horiz);
     ctl.update();
-  }, [camera, c.distance, c.tilt, c.fov, c.flatten]);
+  }, [camera, c.distance, c.tilt, c.fov, c.flatten, style.globe.radiusScale]);
 
   useFrame(() => {
     const ctl = ref.current;
     if (!ctl) return;
-    // Swap if the user drags min past max, otherwise OrbitControls fights
-    // itself and the camera snaps unpredictably.
-    // Zoom limits travel with the lens so the reachable framing is unchanged.
-    const k = lens(c).scale;
-    ctl.minDistance = Math.min(c.minDistance, c.maxDistance) * k;
-    ctl.maxDistance = Math.max(c.minDistance, c.maxDistance) * k;
+    const L = lens(c);
+    const cam = camera as THREE.PerspectiveCamera;
+    // Held every frame rather than clamped once, so a resize or an orientation
+    // flip re-fits with nothing to subscribe to. With zoom gone this is the
+    // only thing setting the distance, so it is simply assigned.
+    const fit = cam.isPerspectiveCamera
+      ? fitDistance(L.fov, cam.aspect, R * style.globe.radiusScale)
+      : 0;
+    camera.position.setLength(Math.max(L.distance, fit));
     ctl.update();
   });
 

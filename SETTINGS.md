@@ -2,6 +2,29 @@
 
 Open with **`?dev`** in the URL or press **D**. Edits auto-save to localStorage.
 
+## Camera
+
+Drag to turn the globe. There is no zoom — it was the only way to push the globe
+past the fit below, and a view you can shove off the edge of the screen is not
+worth the control.
+
+## The globe always fits the viewport
+
+`distance` frames the globe, but it can never bring it in closer than the frame
+can hold. `fov` is the *vertical* field of view, so a portrait viewport has a
+much narrower horizontal one — a globe sized to fill the height would spill past
+both edges, which is what made it overflow on a phone.
+
+The camera is fitted to whichever half-angle is smaller, which covers both
+orientations with one number. It is a floor, never a ceiling: a config framed
+wider than the fit keeps its framing untouched, and only a viewport too small to
+hold the globe pulls the camera back. Rotating a phone re-fits both ways, so
+landscape returns to the framing the style asked for rather than staying
+stranded small.
+
+Consequence: on a narrow screen `distance` stops having an effect below the fit.
+That is the constraint doing its job, not the control breaking.
+
 ## Controls appear only when they apply
 
 The panel hides anything that wouldn't do anything in the current setup, so if a
@@ -389,6 +412,4 @@ A grainy particle shell floating around the globe.
   matching amount, so the globe **stays the same size on screen** but the land
   reads flatter and more evenly sized. 1 is near-orthographic.
 - **distance** — how far the camera sits (applies live).
-- **zoom min** / **zoom max** — scroll-wheel limits. Swapped automatically if
-  you drag them past each other.
 - **tilt** — camera height, i.e. how much you look down on the globe.
