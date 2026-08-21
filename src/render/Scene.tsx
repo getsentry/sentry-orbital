@@ -12,6 +12,7 @@ import { Effects } from "./Effects";
 import { Globe } from "./Globe";
 import { PerfProbe } from "./PerfProbe";
 import { Starfield } from "./Starfield";
+import { Ufo } from "./Ufo";
 
 const R = config.globeRadius;
 
@@ -220,8 +221,9 @@ function localAzimuth(lng: number): number {
 
 /**
  * Rotates the globe on its own axis. Beams live on the surface so they must
- * spin with it; lights and stars stay outside this group, which is what lets a
- * fixed light behave like a real sun.
+ * spin with it, and Seer orbits in the same frame so the planet carries it
+ * along; lights and stars stay outside this group, which is what lets a fixed
+ * light behave like a real sun.
  *
  * Hovering a region in the ORIGIN panel takes the wheel: the spin stops and the
  * globe turns that region to face the camera. Camera azimuth is read live, so
@@ -301,6 +303,7 @@ export function Scene({
       <SpinningWorld style={style} focus={focusRegion}>
         <Globe style={style} />
         <Beams buffer={buffer} hoveredSdk={hoveredSdk} style={style} />
+        <Ufo style={style} />
       </SpinningWorld>
       <Effects style={style} />
     </Canvas>

@@ -106,6 +106,10 @@ function toStyle(v: Record<string, any>): GlobeStyle {
       sizeVariance: v.clSizeVariance, speedVariance: v.clSpeedVariance, gap: v.clGap,
       shade: v.clShade, tint: v.clTint, castShadow: v.clCastShadow,
     },
+    ufo: {
+      enabled: v.ufEnabled, color: v.ufColor, size: v.ufSize, altitude: v.ufAltitude,
+      speed: v.ufSpeed,
+    },
     halo: {
       enabled: v.hlEnabled, color: v.hlColor, count: v.hlCount, radius: v.hlRadius,
       thickness: v.hlThickness, size: v.hlSize, opacity: v.hlOpacity, additive: v.hlAdditive,
@@ -195,6 +199,8 @@ function toControls(s: GlobeStyle): Record<string, any> {
     clSizeVariance: s.clouds.sizeVariance, clSpeedVariance: s.clouds.speedVariance,
     clGap: s.clouds.gap, clShade: s.clouds.shade, clTint: s.clouds.tint,
     clCastShadow: s.clouds.castShadow,
+    ufEnabled: s.ufo.enabled, ufColor: s.ufo.color, ufSize: s.ufo.size,
+    ufAltitude: s.ufo.altitude, ufSpeed: s.ufo.speed,
     hlEnabled: s.halo.enabled, hlColor: s.halo.color, hlCount: s.halo.count,
     hlRadius: s.halo.radius, hlThickness: s.halo.thickness, hlSize: s.halo.size,
     hlOpacity: s.halo.opacity, hlAdditive: s.halo.additive,
@@ -549,6 +555,20 @@ export function DevPanel({
         clLit: { value: i.clouds.lit, label: "react to lights", render: on("Clouds.clEnabled") },
         clAdditive: { value: i.clouds.additive, label: "additive blend",
           render: (get: Get) => !!get("Clouds.clEnabled") && !get("Clouds.clLit") },
+      },
+      { collapsed: true },
+    ),
+
+    "Easter egg": folder(
+      {
+        ufEnabled: { value: i.ufo.enabled, label: "pyramid" },
+        ufColor: { value: i.ufo.color, label: "colour", render: on("Easter egg.ufEnabled") },
+        ufSize: { value: i.ufo.size, min: 0.01, max: 0.3, step: 0.005, label: "size",
+          render: on("Easter egg.ufEnabled") },
+        ufAltitude: { value: i.ufo.altitude, min: 0.05, max: 2, step: 0.01, label: "orbit altitude",
+          render: on("Easter egg.ufEnabled") },
+        ufSpeed: { value: i.ufo.speed, min: 0.02, max: 2, step: 0.01, label: "orbit speed",
+          render: on("Easter egg.ufEnabled") },
       },
       { collapsed: true },
     ),

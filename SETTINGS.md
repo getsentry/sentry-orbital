@@ -10,6 +10,32 @@ panel's code (leva included, ~75 kB gzipped) sits in a separate chunk that a
 visitor to a deployed link never downloads. Previewing a production build
 locally still gets it, which is when you most want to check the two agree.
 
+## Easter egg
+
+Seer — a hot-pink pyramid with one big eye and a curl of tentacles — orbits the
+planet, watching. Click it and it opens Seer in a new tab. It catches the pointer
+from a comfortable distance rather than only where you can see it: it is a small
+thing that never stops moving, and its tentacles are barely a pixel wide.
+
+The eye is always turned towards you. Rather than spinning, the pyramid swivels
+to hold the camera, drifting a few degrees either way so it reads as alive; a
+full spin would swing the one detail that identifies it out of view half the
+time. It also leans back as it passes near your line of sight — the eye face
+slopes about 27° off the tangent plane, so from directly overhead you would
+otherwise be looking at its edge. The lean eases in only once the face starts
+turning away, so at the limb it still stands properly upright. Each face carries
+its own baked shade, so the form stays legible without a light on it.
+
+- **pyramid** — turn the whole thing off.
+- **colour** · **size** · **orbit altitude** · **orbit speed**
+
+It is unlit, so it stays at full strength over the planet's night side. Its
+orbit sits inside the spinning globe group, so it is fixed over the surface and
+the planet carries it round — including the fast swing when hovering a region in
+ORIGIN parks that region in front of you. Outside the group it would have hung
+still while the world turned beneath it, which reads as the pyramid following
+the camera.
+
 ## Camera
 
 Drag to turn the globe. There is no zoom — it was the only way to push the globe
@@ -90,7 +116,6 @@ column on either. Both stand down under `prefers-reduced-motion`.
 Rows carry only what the feed actually has — time, SDK family, region bucket,
 and coordinates. There is no event type on the live payload, and the region is
 the same coarse longitude bucket the **ORIGIN** panel counts, not a country.
-
 
 ## Alerts bulletin
 

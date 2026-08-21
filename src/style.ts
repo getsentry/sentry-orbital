@@ -245,6 +245,16 @@ export type GlobeStyle = {
     castShadow: boolean;
   };
 
+  /** Easter egg: a pyramid that drifts into orbit now and then and links to
+   *  Seer. Hidden most of the time on purpose — finding it is the point. */
+  ufo: {
+    enabled: boolean;
+    color: string;
+    size: number; // world units
+    altitude: number; // clearance above the globe surface
+    speed: number; // radians/sec around its orbit
+  };
+
   /** Grainy particle shell around the globe (the purple haze in the reference). */
   halo: {
     enabled: boolean;
@@ -445,6 +455,14 @@ export const DEFAULT_STYLE: GlobeStyle = {
     shade: 0.8,
     tint: 0.12,
     castShadow: false,
+  },
+
+  ufo: {
+    enabled: true,
+    color: "#ff2bd6",
+    size: 0.075,
+    altitude: 0.34,
+    speed: 0.33,
   },
 
   halo: {
