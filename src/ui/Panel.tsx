@@ -1,33 +1,27 @@
 import type { ReactNode } from "react";
 
-/** Enough rail glyphs to outrun any panel; the body clips the overflow. */
-const RAIL = "│\n".repeat(64);
-
 type Props = {
-  title: string;
+  /** Optional: most panels carry column headers instead, which name the
+   *  contents and align to them. */
+  title?: string;
   /** Panel width in character cells — the whole layout is measured in these. */
   cols: number;
   children: ReactNode;
   className?: string;
 };
 
-/** A box-drawn TUI panel. The top and bottom rules are real glyph runs sized to
- *  `cols`, and the sides are absolutely-positioned columns of `│` so they never
- *  contribute to layout height — the body decides how tall the box is. */
+/** A card.
+ *
+ *  The box used to be drawn in glyphs — `┌─ TITLE ──┐` across the top, columns
+ *  of `│` down the sides, another rule along the bottom. That cost two rows of
+ *  height and could only ever be one cell thick with square corners. The edge
+ *  is a real border now; the width is still counted in character cells, because
+ *  every row inside one is. */
 export function Panel({ title, cols, children, className }: Props) {
-  const fill = Math.max(0, cols - title.length - 5);
-  const top = `┌─ ${title} ${"─".repeat(fill)}┐`;
-  const bottom = `└${"─".repeat(Math.max(0, cols - 2))}┘`;
-
   return (
     <div className={`pnl${className ? ` ${className}` : ""}`} style={{ width: `${cols}ch` }}>
-      <div className="pnl-rule">{top}</div>
-      <div className="pnl-body">
-        <span className="pnl-rail">{RAIL}</span>
-        <div className="pnl-content">{children}</div>
-        <span className="pnl-rail pnl-rail-r">{RAIL}</span>
-      </div>
-      <div className="pnl-rule">{bottom}</div>
+      {title && <div className="pnl-title">{title}</div>}
+      <div className="pnl-body">{children}</div>
     </div>
   );
 }

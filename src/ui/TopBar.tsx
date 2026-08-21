@@ -1,13 +1,38 @@
-/** Session header. Whose events these are, and a light saying the feed is
- *  moving — the rate itself lives in the TODAY card. */
+/** The Sentry mark, from the supplied SVG.
+ *
+ *  The path is inlined rather than loaded as an `<img>` so it can take
+ *  `currentColor` — the mark tints and brightens on hover, and the glow around
+ *  it is a drop-shadow on its own alpha, neither of which reaches inside an
+ *  external image. The file's own `#51FF00` export fill is dropped for the
+ *  same reason.
+ */
+const MARK_PATH =
+  "M9.83252 1.12281C10.0853 1.26884 10.2952 1.47889 10.4412 1.73186L17.7775 14.4569C17.9234 14.71 18.0001 14.9971 18 15.2894C17.9999 15.5816 17.923 15.8686 17.777 16.1217C17.631 16.3747 17.4211 16.5848 17.1683 16.7309C16.9155 16.877 16.6288 16.9539 16.3369 16.954H14.6144C14.6386 16.4914 14.6362 16.0276 14.6144 15.5637H16.3308C16.3795 15.5645 16.4274 15.5524 16.4699 15.5285C16.5123 15.5047 16.5476 15.47 16.5722 15.428C16.5968 15.386 16.6098 15.3382 16.6099 15.2895C16.61 15.2408 16.5972 15.1929 16.5728 15.1508L9.23527 2.42696C9.21115 2.38522 9.1765 2.35057 9.13478 2.32648C9.09306 2.30238 9.04574 2.2897 8.99758 2.2897C8.94942 2.2897 8.9021 2.30238 8.86038 2.32648C8.81866 2.35057 8.78401 2.38522 8.75989 2.42696L7.07733 5.34907C8.88965 6.5321 10.3789 8.14869 11.4104 10.0527C12.4418 11.9567 12.983 14.088 12.9851 16.254V16.9479H8.55184V16.2528C8.55065 14.8654 8.21377 13.4988 7.57001 12.2702C6.92625 11.0415 5.99478 9.98725 4.85528 9.19759L4.02307 10.6411C4.9122 11.2826 5.63626 12.1265 6.13554 13.1033C6.63482 14.08 6.89502 15.1616 6.89468 16.2589V16.9527H1.66312C1.37123 16.9527 1.08449 16.8758 0.831699 16.7297C0.578907 16.5836 0.368971 16.3735 0.222981 16.1205C0.0769903 15.8674 8.80862e-05 15.5804 0 15.2881C-8.79349e-05 14.9959 0.0766412 14.7088 0.222479 14.4557L1.27121 12.6223C1.71301 12.7773 2.1229 13.0116 2.48082 13.3137L1.4212 15.1508C1.39677 15.1929 1.38394 15.2408 1.38404 15.2895C1.38414 15.3382 1.39716 15.386 1.42177 15.428C1.44638 15.47 1.4817 15.5047 1.5241 15.5285C1.56651 15.5524 1.61449 15.5645 1.66312 15.5637H5.46492C5.35148 14.7203 5.04794 13.9137 4.57727 13.205C4.10661 12.4963 3.48112 11.9041 2.74814 11.473L2.14334 11.1255L4.35208 7.2806L4.95688 7.62694C6.36887 8.44292 7.55936 9.59319 8.424 10.9769C9.28865 12.3607 9.80105 13.9356 9.91628 15.5637H11.5807C11.4644 13.6446 10.8751 11.7842 9.86557 10.1487C8.85602 8.5131 7.45758 7.1533 5.79514 6.19071L5.19034 5.84316L7.56117 1.73186C7.70719 1.47889 7.91713 1.26884 8.1699 1.12281C8.42267 0.976779 8.70937 0.899902 9.00121 0.899902C9.29305 0.899902 9.57975 0.976779 9.83252 1.12281Z";
+
+/** Masthead: whether the feed is running, and the mark, both at the far corner.
+ *  Nothing else. What the display is called is not something it has to keep
+ *  saying while it runs. */
 export function TopBar() {
   return (
     <div className="tbar">
-      <span className="tbar-l">SENTRY ORBITAL · GLOBAL EVENT STREAM</span>
       <span className="tbar-live">
         <i className="dot" />
         LIVE
       </span>
+
+      {/* New tab, not this one: the page is a live feed with no history to come
+          back to, so navigating away in place would end the session. */}
+      <a
+        className="tbar-mark"
+        href="https://sentry.io"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Sentry"
+      >
+        <svg viewBox="0 0 18 18" role="presentation">
+          <path d={MARK_PATH} fill="currentColor" />
+        </svg>
+      </a>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { EventBuffer, Stats } from "../data/eventBuffer";
 import type { SdkFamily, TelemetryEvent } from "../types";
 import { SDK_FAMILIES } from "../types";
@@ -6,6 +6,7 @@ import { IS_DEV } from "../dev/savedStyle";
 import { BootSequence } from "./BootSequence";
 import { CrtFrame } from "./CrtFrame";
 import { GeoPanel } from "./GeoPanel";
+import { FocusPanel } from "./FocusPanel";
 import { SdkPanel } from "./SdkPanel";
 import { isMuted, primeAudio, setMuted, sfx } from "./sound";
 import { KeyBar, type Command } from "./KeyBar";
@@ -17,13 +18,19 @@ import { TopBar } from "./TopBar";
 const HISTORY = 16;
 const TICK_MS = 300;
 
-const LEFT_COLS = 54;
-const RIGHT_COLS = 41;
-const CARD_COLS = 54;
+/** The floor for this column, given the current cells: the leaderboard row is
+ *  a 12-cell name (`FLUTTER/DART`) and a 13-cell rate beside rank and trend,
+ *  and the region legend needs 30 cells next to its 10-cell donut. Going
+ *  narrower means giving up the trend strip or truncating SDK names. */
+const LEFT_COLS = 44;
+/** The stream's rows are 33 cells of data — time, SDK, region, coordinates —
+ *  plus the two cells of padding either side. Anything wider leaves dead space
+ *  down the right of the card. */
+const RIGHT_COLS = 39;
+const CARD_COLS = 44;
 
 type Props = {
   buffer: EventBuffer;
-  hoveredSdk: SdkFamily | null;
   setHoveredSdk: (s: SdkFamily | null) => void;
   hoveredRegion: string | null;
   setHoveredRegion: (r: string | null) => void;
@@ -33,7 +40,6 @@ type Props = {
 
 export function Chrome({
   buffer,
-  hoveredSdk,
   setHoveredSdk,
   hoveredRegion,
   setHoveredRegion,
@@ -47,6 +53,11 @@ export function Chrome({
   const [clean, setClean] = useState(false);
   const [booting, setBooting] = useState(true);
   const [mute, setMute] = useState(isMuted());
+  // Hover previews, a pin holds. Hover wins while it lasts, so you can glance at
+  // another family without losing the one you pinned — it comes back on leave.
+  const [hover, setHover] = useState<SdkFamily | null>(null);
+  const [pinned, setPinned] = useState<SdkFamily | null>(null);
+  const selected = hover ?? pinned;
   // Derived from the same stats the panels read, so an alert always
   // corresponds to something that happened in the stream.
 
@@ -93,9 +104,16 @@ export function Chrome({
       // While the machine is booting, keys belong to the skip handler.
       if (booting) return;
       primeAudio();
+      // Escape always releases: a pinned row can drift away from where you
+      // clicked it, so there has to be a way out that isn't aiming at a target.
+      if (e.key === "Escape") {
+        setPinned(null);
+        setHover(null);
+      }
       if (e.key === "f" || e.key === "F") {
         setClean((x) => !x);
-        setHoveredSdk(null);
+        setHover(null);
+        setPinned(null);
       }
       if (e.key === "s" || e.key === "S") toggleMute();
     };
@@ -103,6 +121,10 @@ export function Chrome({
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [booting, setHoveredSdk]);
+
+  useEffect(() => {
+    setHoveredSdk(selected);
+  }, [selected, setHoveredSdk]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -131,19 +153,39 @@ export function Chrome({
 
   return (
     <div className={`chrome${clean ? " is-clean" : ""}${booting ? " is-booting" : ""}`}>
-      <div className="term">
+      {/* The column widths are declared here, so the command row can centre
+          itself in the gap between the two bottom cards rather than on the
+          display — the left column is wider than the right, so those are not
+          the same point, and centring on the display puts the first command
+          over the left card's corner on a narrower window. */}
+      <div
+        className="term"
+        style={
+          { "--lcols": LEFT_COLS, "--rcols": RIGHT_COLS } as CSSProperties
+        }
+      >
         <TopBar />
 
         <div className="term-body">
           <div className="term-col">
             <TotalsPanel cols={CARD_COLS} stats={stats} />
             <div className="term-stack">
+              {selected && (
+                <FocusPanel
+                  cols={LEFT_COLS}
+                  sdk={selected}
+                  pinned={pinned === selected}
+                  stats={stats}
+                />
+              )}
               <SdkPanel
                 cols={LEFT_COLS}
                 counts={stats?.sdkCounts}
                   history={history.current}
-                hovered={hoveredSdk}
-                setHovered={setHoveredSdk}
+                selected={selected}
+                pinned={pinned}
+                setHovered={setHover}
+                togglePin={(sdk) => setPinned((p) => (p === sdk ? null : sdk))}
               />
               <GeoPanel
                 cols={LEFT_COLS}

@@ -7,9 +7,10 @@ export type Command = {
   onRun: () => void;
 };
 
-/** Bottom rule. These are real buttons, not decoration — the keyboard shortcut
- *  and the click target are the same control, so the commands are reachable by
- *  mouse and by Tab as well as by the raw key. */
+/** The commands, centred along the bottom of the display. These are real
+ *  buttons, not decoration — the keyboard shortcut and the click target are the
+ *  same control, so they are reachable by mouse and by Tab as well as by the
+ *  raw key. */
 export function KeyBar({ commands }: { commands: Command[] }) {
   return (
     <div className="kbar">

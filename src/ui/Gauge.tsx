@@ -121,33 +121,35 @@ function runs(cs: Cell[]): { cls: string; text: string }[] {
 const tickLabel = (v: number): string =>
   v >= 1000 ? `${Number((v / 1000).toFixed(1))}k` : String(Math.round(v));
 
-/** Cells held back for full scale, printed off the right cap. Fixed width, so
- *  the bar does not change length when the dial re-ranges. A bargraph starts at
- *  zero without being told, so that end goes unlabelled. */
+/** Cells held back for full scale, printed off the end of the bar. Fixed width,
+ *  so the bar does not change length when the dial re-ranges. A bargraph starts
+ *  at zero without being told, so that end goes unlabelled. */
 const SCALE_W = 4;
 
-/** `cols` is the full row width; the bar gives up two cells to its end caps and
- *  SCALE_W to the number at the top of the dial. */
+/** `cols` is the full row width; the bar gives up SCALE_W to the number at the
+ *  top of the dial and takes the rest. */
 export function RateGauge({ value, cols }: { value: number; cols: number }) {
   const { peak, scale } = useDial(value);
-  const n = Math.max(4, cols - 2 - SCALE_W);
+  const n = Math.max(4, cols - SCALE_W);
   const zone = zoneAt(Math.min(1, value / scale));
 
   return (
     <>
       <div className="row">
-        {pad("EVENTS/SECOND", 20)}
+        {pad("EVENTS/SEC", 20)}
         <span className={`gv-${zone}`}>{rpad(value.toFixed(1), 10)}</span>
         <span className="gv-sub">{rpad(`PEAK ${peak.toFixed(1)}`, Math.max(0, cols - 30))}</span>
       </div>
+      {/* No end caps. `▐` is a right-half block, so a cap at the start put ink
+          in the second half of its cell and the bar read as beginning one cell
+          in — the zero end looked shifted right of everything above it. The
+          track runs to zero on its own. */}
       <div className="row">
-        <span className="gz-cap">▐</span>
         {runs(cells(value, peak, scale, n)).map((r, i) => (
           <span className={r.cls} key={i}>
             {r.text}
           </span>
         ))}
-        <span className="gz-cap">▌</span>
         <span className="gv-sub">{rpad(tickLabel(scale), SCALE_W)}</span>
       </div>
     </>

@@ -9,7 +9,7 @@ body,
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: #05060a;
+  background: #000b31;
 }
 
 body {
@@ -40,24 +40,35 @@ canvas {
 /* ---------- palette ---------- */
 
 :root {
-  /* Borrowed from the diagnostic HUD — cool blue-grey reads as part of the
-     globe's own scene instead of sitting on top of it. Three accents, and
-     they are the gauge's three zones: mint for "live", amber for "errors" and
-     for a rate climbing, red for one at the top of its dial. */
+  /* Cool surfaces, warm data. Text, rules and the frame carry no tint of their
+     own — they are the instrument, not the reading — so orange is left to mean
+     something: the mark, the live light, and the lit half of a meter. The
+     cold-start splash keeps its own neon names below. */
   --ink: #cdd6e8;
   --ink-hi: #e7ecf6;
-  --ink-dim: #6b7794;
-  --ink-faint: #46506a;
-  --line: rgba(130, 160, 235, 0.3);
-  --line-soft: rgba(130, 160, 235, 0.14);
-  --panel: rgba(8, 12, 22, 0.88);
-  --accent: #4ff0a5;
-  --accent-dim: rgba(79, 240, 165, 0.45);
+  /* Both were below 4.5:1 against a card over the lit half of the globe — the
+     faint one, which carries every column header, was at 2.4. Lifted until the
+     header tier clears AA over the ocean blue and the dim tier clears it over
+     land as well, with the three steps still a step apart. */
+  --ink-dim: #8f9bb8;
+  --ink-faint: #7d89a9;
+  --line: rgba(130, 160, 235, 0.34);
+  --line-soft: rgba(130, 160, 235, 0.16);
+  --accent: #ff7a18;
+  --accent-dim: rgba(255, 122, 24, 0.45);
   --warn: #ffb64d;
   --crit: #ff5a5a;
-  --sink: #06111a; /* punch-through for inverse video */
+  --sink: #1a0900; /* punch-through for inverse video */
 
-  /* Boot screen only — the overlay stays cool, the cold-start is neon. */
+  /* Cards. Blue plates the readouts sit on, kept slightly transparent so the
+     globe still moves behind them. */
+  --card: rgba(0, 1, 47, 0.8); /* #00012f */
+  /* The live light is the one thing that means "healthy", so it reads green
+     rather than taking the accent like every other lit element. */
+  --live: #4ff0a5;
+  --card-line: rgba(72, 145, 255, 0.3); /* #4891ff */
+
+  /* The boot screen's own names, kept so it can be retuned on its own. */
   --neon: #ff7a18;
   --neon-hi: #ffc46b;
   --neon-deep: #ff4d00;
@@ -73,8 +84,10 @@ canvas {
   --r-in: var(--tube-r);
 
   /* Departure Mono is a pixel face — it wants whole-pixel sizes, so this steps
-     rather than scaling fluidly. */
-  --cell: 11px;
+     rather than scaling fluidly. 14px is the floor for readable UI text; the
+     whole character grid is measured off it, so panel widths in `ch` and row
+     heights follow automatically. */
+  --cell: 14px;
   --lh: 1.5;
 }
 
@@ -152,6 +165,12 @@ canvas {
    screen, so leaving them interactive would swallow every drag on the globe. */
 .pnl {
   pointer-events: auto;
+  /* The width is a character count, so on a narrow screen a card is simply
+     wider than the viewport and pushes the page sideways. Cap it and clip: the
+     grid can't reflow — the rows are fixed-width text — so the honest failure
+     is a cut-off edge rather than a horizontally scrolling page. */
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .term-body {
@@ -168,15 +187,30 @@ canvas {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 6px;
+  /* Same 8px the body uses between its columns, so every gap between cards is
+     the one measure — the column was at 6px and the stack below at 20px, which
+     read as three different spacings down the left edge. */
+  gap: 8px;
+  /* Without this a flex item won't shrink below its content, so the cap above
+     never gets a chance to apply. */
+  min-width: 0;
 }
+/* The stream hangs off the bottom of its column, so the newest row sits level
+   with the readouts on the other side rather than floating up on its own. */
+/* The stream hangs off the bottom of its column, so the newest row sits level
+   with the readouts on the other side rather than floating up on its own. */
 .term-col-r {
-  justify-content: space-between;
+  justify-content: flex-end;
+  /* The masthead no longer holds a row open above the columns, so this is the
+     only thing keeping the stream clear of the light in the corner. One line of
+     the grid — the height the bar used to occupy — and it follows the leading
+     down when a short viewport tightens it. */
+  padding-top: calc(var(--cell) * var(--lh));
 }
 .term-stack {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 /* ---------- top / bottom rules ---------- */
 
@@ -187,28 +221,99 @@ canvas {
   gap: 2ch;
   color: var(--ink-dim);
 }
-.tbar-l {
-  color: var(--ink-hi);
-  min-width: 0;
-  overflow: hidden;
+/* Taken out of the column's flow and laid along the bottom edge, so the body
+   keeps the height the commands used to occupy and the two bottom cards drop
+   to the same line the commands sit on.
+
+   The insets are the two columns' own widths, declared by Chrome — so the
+   commands centre in the gap the globe shows through rather than on the
+   display. The columns are not the same width, so those are different points,
+   and the display's one puts the first command over the left card's corner. */
+.kbar {
+  position: absolute;
+  left: calc(var(--lcols) * 1ch + 8px);
+  right: calc(var(--rcols) * 1ch + 8px);
+  bottom: 0;
+  justify-content: center;
 }
-/* The live readout is the one thing that must never be clipped, so it never
-   shrinks and everything to its left gives way first. */
+
+/* ---------- masthead ---------- */
+
+/* Laid along the top edge out of the column's flow, the same way the command
+   row is laid along the bottom — so the body keeps the height the masthead used
+   to occupy and the headline card rises level with the light instead of
+   starting a row below it.
+
+   Shrink-to-fit against the right edge: the left of the bar is empty now, and a
+   full-width box out of flow would only sit over the card it just made room
+   for. */
+.tbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  /* Just the mark and the light now, so they centre on each other. */
+  align-items: center;
+  gap: 2ch;
+}
+/* The far corner: whether the feed is running, with the mark outside it. The
+   push lives on the light, which comes first, so the two travel as a pair and
+   the mark keeps the corner itself. */
 .tbar-live {
   margin-left: auto;
   flex: none;
   display: flex;
   align-items: center;
   gap: 1ch;
-  color: var(--accent);
+  color: var(--live);
+  letter-spacing: 0.16em;
+}
+/* A real 32px box, not a run of half-block glyphs sized by the character cell —
+   and a link, so it needs the pointer back that `.term` takes away. The bitmap
+   is 32 rows for the same reason the box is 32px: one source pixel per rendered
+   pixel, or the strokes come out uneven. */
+.tbar-mark {
+  flex: none;
+  display: block;
+  /* Measured off the character cell rather than fixed, so the mark keeps its
+     proportion to the text beside it when the grid steps down on a phone.
+     Lands on the SVG's own 18px at the default cell. */
+  width: calc(var(--cell) + 4px);
+  height: calc(var(--cell) + 4px);
+  /* The same green as the light it now sits beside — two different greens a
+     cell apart would read as one of them being wrong. */
+  color: var(--live);
+  pointer-events: auto;
+  /* drop-shadow rather than text-shadow: the mark is geometry, so the glow has
+     to follow the alpha of the path instead of a glyph box. */
+  filter: drop-shadow(0 0 6px rgba(79, 240, 165, 0.45));
+  transition: color 120ms linear, filter 120ms linear;
+}
+.tbar-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  /* No `shape-rendering: crispEdges` here any more. It was right for the pixel
+     bitmap this replaced — axis-aligned rects that had to land on whole device
+     pixels — and is exactly wrong for a curved path, which needs the
+     antialiasing it turns off. */
+}
+.tbar-mark:hover,
+.tbar-mark:focus-visible {
+  color: #a9ffd8;
+  filter: drop-shadow(0 0 10px rgba(79, 240, 165, 0.75));
+}
+.tbar-mark:focus-visible {
+  outline: 1px solid var(--ink-hi);
+  outline-offset: 3px;
 }
 /* The font has no U+25CF, and a drawn dot blinks better than a glyph anyway. */
 .tbar-live .dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 7px var(--accent);
+  background: var(--live);
+  box-shadow: 0 0 7px var(--live);
   animation: blink 2.6s steps(1, end) infinite;
 }
 @keyframes blink {
@@ -221,9 +326,7 @@ canvas {
     opacity: 0.12;
   }
 }
-
 .kbar-keys {
-  margin-left: auto;
   display: flex;
   /* Wider than the space inside a command, so the row reads as three controls
      rather than one run of words. */
@@ -276,38 +379,107 @@ canvas {
 }
 
 
+/* ---------- region donut ---------- */
+
+.geo {
+  display: flex;
+  gap: 2ch;
+  /* The legend is a header row plus three region rows; the donut is three rows
+     tall. Aligning the bottoms is what puts it beside the regions rather than
+     beside the header. */
+  align-items: flex-end;
+}
+.geo-legend {
+  flex: none;
+}
+/* Exactly the three region rows: line-height × 3. Square, so the ring is round
+   and not an ellipse. Pushed to the panel's right edge. */
+.geo-donut {
+  flex: none;
+  width: calc(var(--lh) * 3em);
+  height: calc(var(--lh) * 3em);
+  margin-left: auto;
+  display: block;
+  overflow: visible;
+}
+/* The unfilled ring, visible only before the first events land. */
+.donut-track {
+  stroke: var(--line-soft);
+}
+/* Butt caps, so a slice ends exactly on its percentage. With the wedges butted
+   against each other a round cap would round past its own share and sit on top
+   of its neighbour, which is the one thing a gapless ring can't absorb. */
+.donut-slice {
+  stroke-linecap: butt;
+  transition: opacity 120ms linear;
+}
+/* Hovering a legend row holds its wedge and drops the others, so the row and
+   the wedge are visibly the same thing. */
+.donut-slice.is-off {
+  opacity: 0.25;
+}
+/* The legend's colour chip — the same hue as its wedge, which is what lets the
+   donut go unlabelled. */
+.geo-key {
+  color: var(--key);
+}
+/* Hovering a region inverts its row onto its own colour rather than the house
+   accent, so the highlight names the region it is highlighting — the same
+   gesture the SDK leaderboard makes below. Inverse video otherwise: the text
+   punches through to near-black exactly as it does on the accent fill.
+
+   The chip is the one thing that doesn't invert. It keeps `--key` from the row,
+   which on a row already filled with `--key` means it disappears into it — and
+   that is the point. It is the legend for a colour the row is now wearing
+   outright, so restating it would be the odd thing, not omitting it.
+
+   Three classes, so this outranks the generic `.row.is-sel` whatever order the
+   two end up in. */
+.row.geo-row.is-sel {
+  background: var(--key);
+  color: var(--sink);
+}
+
 /* ---------- panels ---------- */
 
 .pnl {
   color: var(--ink);
-  /* No backdrop-filter here on purpose. It samples the composited backdrop —
-     which is the WebGL canvas — so every globe frame invalidated the panels,
-     which invalidated the bulge filter on .term, which re-ran a ~1.1M-pixel
-     displacement pass at 60fps instead of on the 300ms data tick. A more
+  background: var(--card);
+  border: 3px solid var(--card-line);
+  /* Heavier along the bottom, so a card reads as a plate lit from above rather
+     than as an outline. */
+  border-bottom-width: 6px;
+  border-radius: 12px;
+  /* The character grid decides the width, so the stroke has to sit outside it.
+     Under the global border-box it would eat six pixels out of the text column
+     and every fixed-width row would overhang its own padding. */
+  box-sizing: content-box;
+  /* Only the vertical half of the card's 12/16 inset sits here. The declared
+     width IS the character grid, so padding it sideways would push every panel
+     32px wider than the column it was sized for — the horizontal half goes on
+     the children instead, where it comes out of the grid rather than adding to
+     it. */
+  padding: 12px 0;
+  pointer-events: auto;
+  /* No backdrop-filter on the fill, on purpose. It samples the composited
+     backdrop — which is the WebGL canvas — so every globe frame invalidated the
+     panels, which invalidated the bulge filter on .term, which re-ran a ~1.1M
+     pixel displacement pass at 60fps instead of on the 300ms data tick. A more
      opaque fill buys the same legibility for nothing. */
-  background: var(--panel);
 }
-.pnl-rule {
-  color: var(--line);
+/* Was the `┌─ TITLE ──┐` half of the drawn box; now it is just a label, so it
+   takes the body's own indent and the text colour rather than the edge's. */
+.pnl-title {
+  padding: 0 16px;
+  color: var(--ink-dim);
+  letter-spacing: 0.18em;
 }
+/* The horizontal half of the card's inset, taken here rather than on the card
+   so it comes out of the declared width instead of widening it. 16px is a shade
+   under the two cells the drawn rails used to occupy, so the `cols - 4` column
+   every panel sizes its rows to still fits with room to spare. */
 .pnl-body {
-  position: relative;
-  padding: 0 2ch;
-}
-/* Rails are taken out of flow so the content decides the box height; the
-   overflow of the glyph column is simply clipped. */
-.pnl-rail {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 1ch;
-  overflow: hidden;
-  color: var(--line);
-}
-.pnl-rail-r {
-  left: auto;
-  right: 0;
+  padding: 0 16px;
 }
 
 .rows {
@@ -329,6 +501,12 @@ canvas {
 .rule {
   color: var(--line-soft);
 }
+/* The focus card sits in a column with no spare rows, so its headline is two
+   cells rather than the session counter's three. */
+.big-sm {
+  font-size: calc(var(--cell) * 2);
+}
+
 /* Integer multiple of the cell size — a pixel font at a fractional scale turns
    to mush. The rails keep the body's line-height, so they stay continuous. */
 .big {
@@ -338,7 +516,7 @@ canvas {
   /* At 3x the cell, 11 digits exactly fill the panel — clip rather than let a
      longer count push through the right rail. */
   overflow: hidden;
-  text-shadow: 0 0 18px rgba(79, 240, 165, 0.25);
+  text-shadow: 0 0 18px rgba(130, 160, 235, 0.28);
   margin: 2px 0 1px;
 }
 .mtr-on {
@@ -346,7 +524,8 @@ canvas {
 }
 .mtr-off {
   /* The unfilled track carries a lot of ink at this size — without dropping the
-     glow and most of the alpha, an empty meter reads as a full one. */
+     glow and most of the alpha, an empty meter reads as a full one. Cool, so
+     only the filled half of a meter is coloured. */
   color: rgba(130, 160, 235, 0.16);
 }
 
@@ -366,7 +545,7 @@ canvas {
   text-shadow: 0 0 10px rgba(255, 90, 90, 0.45);
 }
 .gz-off-lo {
-  color: rgba(79, 240, 165, 0.13);
+  color: rgba(255, 122, 24, 0.15);
 }
 .gz-off-mid {
   color: rgba(255, 182, 77, 0.14);
@@ -378,9 +557,6 @@ canvas {
    reads as an annotation rather than as more bar. */
 .gz-pk {
   color: var(--ink-hi);
-}
-.gz-cap {
-  color: var(--line);
 }
 /* The readout takes the colour of the zone it is sitting in: the number and the
    bar can then be read as one instrument out of the corner of an eye. */
@@ -407,26 +583,45 @@ canvas {
   position: relative;
   /* Age as a gradient: rows dissolve on their way down instead of vanishing off
      a hard edge, which puts the eye on the fresh end of the column. */
-  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
 }
 /* The rows themselves never move — the whole list is translated once per
    arrival (see StreamPanel), which is one compositor transform rather than
    eighteen rows being repainted. */
 .stream-row {
-  animation: stream-in 200ms ease-out;
-  transition: color 700ms ease-out;
+  /* Longer than the slide, so a row is still coming up as it clears the top
+     edge. Matching the slide meant it was already at full strength by the time
+     anyone could see it, which arrives as a flash rather than a fade. */
+  animation: stream-in 500ms linear;
 }
-/* The newest row arrives lit and then cools into the column as the next ones
-   push it down — a moving head, so the eye can follow one row for as long as it
-   takes to read it. No transition here on purpose: arriving should be instant
-   and only the fade away from it gradual. */
-.stream-row.is-head {
-  color: var(--accent);
-  transition: none;
+/* One character cell holding a drawn dot, coloured by SDK family — the same
+   palette the beams use, so a row and the beam it lit on the globe read as the
+   same event.
+
+   Drawn rather than typed: Departure Mono has no round dot, and a fallback
+   glyph would arrive from another face at another advance width, which is the
+   one thing a column of fixed-width text cannot absorb. An inline-block of
+   exactly 1ch keeps the grid intact whatever is inside it. */
+.sdk-dot {
+  display: inline-block;
+  position: relative;
+  width: 1ch;
+  height: var(--cell);
+  /* Against the text box rather than the baseline, so the dot cannot push the
+     line box taller than the row it sits in. */
+  vertical-align: text-bottom;
 }
-.stream-mark {
-  color: var(--accent);
+.sdk-dot::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: currentColor;
 }
 @keyframes stream-in {
   from {
@@ -447,6 +642,30 @@ canvas {
 .row.is-sel .mtr-on,
 .row.is-sel .mtr-off {
   background: var(--accent);
+  color: var(--sink);
+}
+
+/* ---------- SDK leaderboard ---------- */
+/* Each row carries its family's colour in `--sdk`, set in SdkPanel, and three
+   things read it: the dot, the trend, and the fill when the row is selected. */
+.sdk-row .sdk-dot,
+.sdk-row .spark {
+  color: var(--sdk);
+}
+/* Selected rows invert onto the family's own colour rather than the house
+   accent, so the highlight names what it is highlighting. One text colour
+   serves all ten: the near-black ink clears AA against every colour in the
+   palette, the tightest being Ruby's red at 4.73:1 and the rest running up to
+   14:1 on JavaScript's yellow. Worth rechecking if a family is ever recoloured
+   darker.
+
+   Three classes, so this outranks the generic `.row.is-sel` above whatever
+   order the two end up in. */
+.row.sdk-row.is-sel {
+  background: var(--sdk);
+  color: var(--sink);
+}
+.row.sdk-row.is-sel .spark {
   color: var(--sink);
 }
 
@@ -481,9 +700,9 @@ canvas {
   position: absolute;
   inset: -1px;
   border-radius: var(--tube-r);
-  border: 1px solid rgba(79, 240, 165, 0.14);
+  border: 1px solid rgba(150, 170, 200, 0.16);
   box-shadow:
-    0 0 34px 4px rgba(79, 240, 165, 0.1),
+    0 0 34px 4px rgba(130, 160, 235, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
@@ -727,8 +946,8 @@ canvas {
   left: 26px;
   width: 208px;
   padding: 12px 13px 10px;
-  background: rgba(8, 12, 22, 0.93);
-  border: 1px solid rgba(130, 160, 235, 0.22);
+  background: rgba(18, 8, 3, 0.93);
+  border: 1px solid rgba(255, 122, 24, 0.24);
   border-radius: 6px;
   /* Opaque, not blurred — a blur here samples the canvas every frame, so the
      FPS meter was measurably changing the number it reports. */
@@ -776,7 +995,7 @@ canvas {
 }
 .perf-sep {
   height: 1px;
-  background: rgba(130, 160, 235, 0.14);
+  background: rgba(255, 122, 24, 0.16);
   margin: 7px 0;
 }
 .perf-hint {

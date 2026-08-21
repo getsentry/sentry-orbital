@@ -64,6 +64,22 @@ stranded small.
 Consequence: on a narrow screen `distance` stops having an effect below the fit.
 That is the constraint doing its job, not the control breaking.
 
+## Cards
+
+The panels used to draw their own boxes in glyphs — `┌─ TITLE ──┐` across the
+top, columns of `│` down the sides. The edge is a real border now: 3px on three
+sides and 6px along the bottom, so a card reads as a plate lit from above, on a
+cool translucent fill that lets the globe move behind it.
+
+The one rule to keep: **the border sits outside the character grid.** Panels
+size their rows to `cols - 4` and the body reserves exactly that with `2ch` of
+padding either side, so `.pnl` is `box-sizing: content-box`. Under the global
+border-box the stroke would eat six pixels out of the text column and every
+fixed-width row would overhang its own padding.
+
+Dropping the drawn box also gave every card two rows of height back, which is
+why the left-hand stack has more air than it did.
+
 ## Rate gauge
 
 Top left, under the day's total. A zoned bargraph rather than a number on its
@@ -96,64 +112,42 @@ threshold the client can honestly know.
 
 ## Event stream
 
-Right-hand column. One row arrives per data tick, newest at the top, and the
-whole column slides down to make room for it — the motion is what makes a wall
-of fixed-width text readable as a stream rather than as churn.
+Bottom of the right-hand column, ten rows deep. One row arrives per data tick,
+newest at the top, and the whole column slides down to make room for it — the
+motion is what makes a wall of fixed-width text readable as a stream rather than
+as churn.
+
+The slide is linear and its duration tracks the gap between arrivals, so the
+column is still travelling when the next row lands. Both matter: eased, every
+row would accelerate and settle, and a shorter slide would finish early and
+leave a pause — a column of little settles and pauses is what reads as stutter.
+An arrival that interrupts a slide picks up from wherever the column has got to
+rather than snapping it forward.
 
 It is a **sample, not a queue**. At 40 events a second the panel used to redraw
 two thirds of its rows every tick, so nothing could be followed; now each tick
 admits the newest event and drops whatever else arrived alongside it. Dropping
 rather than queueing is deliberate — a queue drained at a readable pace would
 fall minutes behind within a minute, and the timestamps would be fiction. The
-header carries the ratio (`1:14` = one row shown per fourteen received), so what
-is missing is stated rather than implied.
+panel states the ratio (`SHOWING 1:14` = one row shown per fourteen received),
+so what is missing is stated rather than implied.
 
-The newest row arrives in mint and cools to normal ink as later rows push it
-down, and the bottom of the column fades out with age. Neither is decoration:
-between them they say where to look and how old a row is without spending a
-column on either. Both stand down under `prefers-reduced-motion`.
+The newest row fades up over half a second — longer than the slide, so it is
+still coming up as it clears the top edge rather than snapping in at full
+strength — and the bottom of the column fades out with age. Neither is
+decoration: between them they say where to look and how old a row is without
+spending a column on either. Both stand down under `prefers-reduced-motion`.
+
+Each row carries a dot in its SDK family's colour, taken from the palette the
+beams are drawn with rather than a copy of it — so a row and the beam it lit on
+the globe are the same colour. The dot is drawn rather than typed: Departure
+Mono has no round glyph, and a fallback would arrive from another face at
+another advance width, which is the one thing a column of fixed-width text
+cannot absorb. It occupies exactly one character cell.
 
 Rows carry only what the feed actually has — time, SDK family, region bucket,
 and coordinates. There is no event type on the live payload, and the region is
 the same coarse longitude bucket the **ORIGIN** panel counts, not a country.
-
-## Alerts bulletin
-
-Top right. Derived live from the same rolling stats the panels read — throughput
-against its own trailing baseline, error share per SDK family, and regional
-concentration — so a line only appears when something actually moved in the
-stream. Each entry links out to sentry.io.
-
-Nothing in it identifies a customer, project, user or issue: the bulletin only
-ever names an SDK family, a region and a rate.
-
-Two behaviours worth knowing:
-
-- Alerts are on a cooldown per kind, so one storm produces one line rather than
-  a screenful of the same thing.
-- A stalled stream is treated as the tab being backgrounded, not as an outage.
-  The generator runs off requestAnimationFrame, which browsers suspend on a
-  hidden tab, so it would otherwise report a 100% drop on leaving and a spike on
-  returning.
-
-The right-hand column is hidden below 1100px wide, so the bulletin goes with it.
-
-## Rendering quality
-
-Not a style control — a per-device setting, decided at load and not saved with
-anything. The design is the same on every tier: no effect is dropped, no
-geometry disappears, nothing moves. What scales is resolution, the globe-mask
-buffers, texture filtering, and the size of the painted map — the things that
-cost fill rate and startup time and that nobody looks at directly.
-
-The tier is guessed from what the browser reports about the hardware, which is
-thin and often wrong, so a measured governor sits behind it: if frames stay
-slower than ~45fps for two seconds it lowers resolution a step, up to three
-times. It only ever lowers. A governor that also raised it would sit at the
-boundary flipping between two settings, and a resolution change is visible.
-
-`?quality=low`, `?quality=medium` or `?quality=high` forces a tier, which is
-the only practical way to see what someone else's device is seeing.
 
 ## Boot screen
 
@@ -199,6 +193,44 @@ whole composition creeps up the screen while it draws.
 Every figure the log reports is real: the city count, the SDK family count, the
 ring-buffer size and the feed it found are all read from the same config the app
 starts with, so the screen can't claim something the app then contradicts.
+
+## Alerts bulletin
+
+Top right. Derived live from the same rolling stats the panels read — throughput
+against its own trailing baseline, error share per SDK family, and regional
+concentration — so a line only appears when something actually moved in the
+stream. Each entry links out to sentry.io.
+
+Nothing in it identifies a customer, project, user or issue: the bulletin only
+ever names an SDK family, a region and a rate.
+
+Two behaviours worth knowing:
+
+- Alerts are on a cooldown per kind, so one storm produces one line rather than
+  a screenful of the same thing.
+- A stalled stream is treated as the tab being backgrounded, not as an outage.
+  The generator runs off requestAnimationFrame, which browsers suspend on a
+  hidden tab, so it would otherwise report a 100% drop on leaving and a spike on
+  returning.
+
+The right-hand column is hidden below 1100px wide, so the bulletin goes with it.
+
+## Rendering quality
+
+Not a style control — a per-device setting, decided at load and not saved with
+anything. The design is the same on every tier: no effect is dropped, no
+geometry disappears, nothing moves. What scales is resolution, the globe-mask
+buffers, texture filtering, and the size of the painted map — the things that
+cost fill rate and startup time and that nobody looks at directly.
+
+The tier is guessed from what the browser reports about the hardware, which is
+thin and often wrong, so a measured governor sits behind it: if frames stay
+slower than ~45fps for two seconds it lowers resolution a step, up to three
+times. It only ever lowers. A governor that also raised it would sit at the
+boundary flipping between two settings, and a resolution change is visible.
+
+`?quality=low`, `?quality=medium` or `?quality=high` forces a tier, which is
+the only practical way to see what someone else's device is seeing.
 
 ## Controls appear only when they apply
 

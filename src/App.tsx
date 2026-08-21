@@ -82,7 +82,6 @@ export default function App() {
       />
       <Chrome
         buffer={buffer}
-        hoveredSdk={hoveredSdk}
         setHoveredSdk={setHoveredSdk}
         hoveredRegion={hoveredRegion}
         setHoveredRegion={setHoveredRegion}

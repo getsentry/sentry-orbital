@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { config } from "../config";
 import type { SdkFamily } from "../types";
 import { SDK_FAMILIES } from "../types";
+// The beams' own palette — a family's row, its dot, its trend and its beams on
+// the globe are all one colour, and stay that way if the palette is retuned.
+import { sdkColorHex } from "../render/util";
 import { Panel } from "./Panel";
 import { sfx } from "./sound";
 import { fixed, pad, rpad, spark } from "./term";
@@ -14,7 +17,7 @@ const WIN_S = config.statsWindowMs / 1000;
 const OVERTAKE_MARGIN = 0.12;
 const OVERTAKE_FLOOR = 1;
 
-const LABELS: Record<SdkFamily, string> = {
+export const LABELS: Record<SdkFamily, string> = {
   javascript: "JAVASCRIPT",
   python: "PYTHON",
   java: "JAVA/KOTLIN",
@@ -31,8 +34,11 @@ type Props = {
   cols: number;
   counts: Record<SdkFamily, number> | undefined;
   history: Record<SdkFamily, number[]>;
-  hovered: SdkFamily | null;
+  /** What the globe is currently filtered to — hover, or the pin it falls back to. */
+  selected: SdkFamily | null;
+  pinned: SdkFamily | null;
   setHovered: (s: SdkFamily | null) => void;
+  togglePin: (s: SdkFamily) => void;
 };
 
 /**
@@ -64,26 +70,38 @@ function settle(
  *  There is deliberately no error column: the live feed carries no category, so
  *  every event arrives tagged the same way and the share would read 100% for
  *  every family — a number that looks like a measurement and isn't. */
-export function SdkPanel({ cols, counts, history, hovered, setHovered }: Props) {
+export function SdkPanel({
+  cols,
+  counts,
+  history,
+  selected,
+  pinned,
+  setHovered,
+  togglePin,
+}: Props) {
   const [order, setOrder] = useState<SdkFamily[]>(() => [...SDK_FAMILIES]);
-  // Ranking is suspended while the pointer is inside the panel. Without this a
+  // Ranking is suspended while the pointer is inside the panel, and while a row
+  // is pinned. Without this a
   // row can be re-sorted out from under a stationary cursor, which fires
   // mouseenter on whichever family slid into that slot — so the highlight, and
   // the globe filter it drives, jump to something you never pointed at.
   const held = useRef(false);
 
+  // Also held while something is pinned. A pin means "I am looking at this", and
+  // letting the board re-sort underneath would move the pinned row away from the
+  // cursor — so clicking it again to release becomes a game of catch.
   useEffect(() => {
-    if (held.current || !counts) return;
+    if (held.current || pinned || !counts) return;
     setOrder((prev) => settle(prev, counts));
-  }, [counts]);
+  }, [counts, pinned]);
 
   // One shared scale keeps the trends honest: a quiet SDK stays visibly quiet.
   const peak = Math.max(1, ...SDK_FAMILIES.flatMap((s) => history[s]));
 
   return (
-    <Panel title="SDK THROUGHPUT" cols={cols}>
+    <Panel cols={cols}>
       <div className="row faint">
-        {`${pad("#", 2)} ${pad("SDK", 13)} ${rpad("EVENTS/SECOND", 13)}  ${pad("TREND", 18)}`}
+        {`  ${pad("#", 2)} ${pad("SDK", 12)} ${rpad("EVENTS/SEC", 13)}  ${pad("TREND", 7)}`}
       </div>
       <div
         className="rows"
@@ -100,13 +118,24 @@ export function SdkPanel({ cols, counts, history, hovered, setHovered }: Props) 
           return (
             <div
               key={sdk}
-              className={`row${hovered === sdk ? " is-sel" : ""}`}
+              className={`row sdk-row${selected === sdk ? " is-sel" : ""}${pinned === sdk ? " is-pinned" : ""}`}
+              // One property, read by the dot, the trend and the selected fill.
+              style={{ "--sdk": sdkColorHex(sdk) } as CSSProperties}
               onMouseEnter={() => {
                 setHovered(sdk);
                 sfx.hover();
               }}
+              onClick={() => {
+                togglePin(sdk);
+                sfx.press();
+              }}
             >
-              {`${String(i + 1).padStart(2, "0")} ${pad(LABELS[sdk], 13)} ${fixed(n / WIN_S, 13)}  ${spark(history[sdk], peak, 18)}`}
+              {/* One cell, two jobs: the family's colour at rest, and the
+                  pointer once the row is the one being read. Both are exactly
+                  one character wide, so the columns never shift. */}
+              {selected === sdk ? "►" : <span className="sdk-dot" />}
+              {` ${String(i + 1).padStart(2, "0")} ${pad(LABELS[sdk], 12)} ${fixed(n / WIN_S, 13)}  `}
+              <span className="spark">{spark(history[sdk], peak, 7)}</span>
             </div>
           );
         })}
