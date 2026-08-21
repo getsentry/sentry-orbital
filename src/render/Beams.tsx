@@ -12,6 +12,62 @@ const MAX = config.maxPulses;
 const R = config.globeRadius;
 const SHAPE_INDEX: Record<BeamStyle, number> = { line: 0, bar: 0, dot: 1, ring: 2, burst: 3, halo: 4 };
 
+/** Instance attributes, with their item sizes — needed to turn a slot range
+ *  into the element range `addUpdateRange` wants. */
+const BEAM_ATTRS: readonly (readonly [string, number])[] = [
+  ["iPos", 3], ["iDir", 3], ["iColor", 3],
+  ["iLen", 1], ["iSpawn", 1], ["iSdk", 1], ["iIntensity", 1], ["iSeed", 1],
+];
+const SPRITE_ATTRS: readonly (readonly [string, number])[] = [
+  ["position", 3], ["aDir", 3], ["aColor", 3],
+  ["aSpawn", 1], ["aSdk", 1], ["aIntensity", 1], ["aSeed", 1],
+];
+
+/**
+ * Upload only the slots just written.
+ *
+ * Marking an attribute `needsUpdate` re-sends the whole array — at 16k slots
+ * that is 900kB per attribute set, every frame an event arrives, which is
+ * nearly every frame. The writes are a contiguous run around the ring, so two
+ * ranges at most describe them exactly.
+ */
+function uploadRange(
+  geo: THREE.BufferGeometry,
+  attrs: readonly (readonly [string, number])[],
+  start: number,
+  count: number,
+  ring: number,
+) {
+  const head = Math.min(count, ring - start);
+  const tail = count - head;
+  for (const [name, size] of attrs) {
+    const a = geo.attributes[name] as THREE.BufferAttribute;
+    a.clearUpdateRanges();
+    a.addUpdateRange(start * size, head * size);
+    if (tail > 0) a.addUpdateRange(0, tail * size);
+    a.needsUpdate = true;
+  }
+}
+
+/** Re-send everything. Used when a style becomes visible again: while it was
+ *  hidden nothing uploaded, so the GPU's copy has holes. */
+function uploadAll(geo: THREE.BufferGeometry, attrs: readonly (readonly [string, number])[]) {
+  for (const [name] of attrs) {
+    const a = geo.attributes[name] as THREE.BufferAttribute;
+    a.clearUpdateRanges();
+    a.needsUpdate = true;
+  }
+}
+
+/** Arrival-rate history, in half-second buckets. 256 of them covers 128s —
+ *  past the longest life the panel can dial in. */
+const BUCKET_S = 0.5;
+const BUCKETS = 256;
+const wrapIdx = (i: number) => ((i % BUCKETS) + BUCKETS) % BUCKETS;
+/** Never draw fewer than this, so a trickle of events still has somewhere to
+ *  land without the ring resizing on every event. */
+const MIN_RING = 64;
+
 // ------------------------------------------------------------------- bars ---
 // `bar` beams are solid rectangular cuboids standing on the surface, drawn as
 // one instanced box: a 24-vertex template plus per-beam instance attributes.
@@ -467,6 +523,15 @@ export function Beams({
       rPos, rDir, rCol, rLen, rSpawn, rSdk, rInt, rSeed,
       sPos, sDir, sCol, sSpawn, sSdk, sInt, sSeed,
       cursor: 0,
+      /** Highest slot still holding a beam that may be alive, and when it was
+       *  last written. Lets the ring shrink without cutting beams short. */
+      hw: MIN_RING,
+      hwAt: 0,
+      arrivals: new Uint32Array(BUCKETS),
+      bucket: -1,
+      barsShown: false,
+      ribbonsShown: false,
+      spritesShown: false,
     };
   }, []);
 
@@ -537,29 +602,85 @@ export function Beams({
     const blend = b.additive ? THREE.AdditiveBlending : THREE.NormalBlending;
     state.ribbonMat.blending = blend;
     state.spriteMat.blending = blend;
-    state.bars.visible = b.visible && isBar;
-    state.ribbons.visible = b.visible && isRibbon;
-    state.sprites.visible = b.visible && !isBar && !isRibbon;
+    const barsShown = b.visible && isBar;
+    const ribbonsShown = b.visible && isRibbon;
+    const spritesShown = b.visible && !isBar && !isRibbon;
+    state.bars.visible = barsShown;
+    state.ribbons.visible = ribbonsShown;
+    state.sprites.visible = spritesShown;
+
+    // Nothing uploads while a style is hidden, so any event that arrived in the
+    // meantime is only in the CPU copy. Re-send in full the frame it returns.
+    if ((barsShown || ribbonsShown) && !(state.barsShown || state.ribbonsShown)) {
+      uploadAll(state.rg, BEAM_ATTRS);
+    }
+    if (spritesShown && !state.spritesShown) uploadAll(state.sg, SPRITE_ATTRS);
+    state.barsShown = barsShown;
+    state.ribbonsShown = ribbonsShown;
+    state.spritesShown = spritesShown;
 
     const events = buffer.drain();
+
+    // ---- how many slots could be holding a live beam --------------------
+    // A beam's whole existence is grow + hold + shrink, so the only slots worth
+    // drawing are the ones written inside that window — counting arrivals over
+    // it gives that number exactly. Drawing the buffer's full capacity instead
+    // meant ~65k instances for the ~150 that were actually alive, and every one
+    // of those dead instances still ran the vertex shader, in each of the three
+    // passes a masked frame makes.
+    const life =
+      (b.riseSeconds + b.holdSeconds + b.shrinkSeconds) * (1 + Math.max(0, b.jitterLife) * 0.5);
+    const bucket = Math.floor(t / BUCKET_S);
+    if (bucket !== state.bucket) {
+      // Clear whatever the gap skipped over. A clock that went backwards means
+      // none of the history describes now, so drop all of it.
+      const stale = bucket < state.bucket ? BUCKETS : Math.min(BUCKETS, bucket - state.bucket);
+      for (let k = 0; k < stale; k++) state.arrivals[wrapIdx(bucket - k)] = 0;
+      state.bucket = bucket;
+    }
+    state.arrivals[wrapIdx(bucket)] += events.length;
+
+    const span = Math.min(BUCKETS, Math.ceil(life / BUCKET_S) + 1);
+    let live = 0;
+    for (let k = 0; k < span; k++) live += state.arrivals[wrapIdx(bucket - k)];
+    // A quarter over what actually arrived, so a rising rate cannot run out of
+    // slots before the next frame resizes.
+    const ring = Math.max(MIN_RING, Math.min(MAX, Math.ceil(live * 1.25) + MIN_RING));
+    if (state.cursor >= ring) state.cursor = 0;
+
+    // Shrinking the ring must not cut beams short: slots above it can still
+    // hold something unfinished. Keep drawing up to the high-water mark until a
+    // full lifetime has passed since anything was written there.
+    if (t - state.hwAt > life) {
+      state.hw = ring;
+      state.hwAt = t;
+    }
+    const draw = Math.max(ring, state.hw);
+    state.rg.instanceCount = draw;
+    state.qg.instanceCount = draw;
+    state.sg.setDrawRange(0, draw);
+
     if (events.length === 0) return;
 
-    let cursor = state.cursor;
+    // `Color.set` parses a CSS string; once a frame rather than once an event.
+    if (b.colorMode === "fixed") fixed.set(b.color);
+    const fixedCol: readonly number[] = [fixed.r, fixed.g, fixed.b];
+
+    const start = state.cursor;
+    let cursor = start;
     for (const e of events) {
       const i = cursor;
-      cursor = (cursor + 1) % MAX;
+      cursor = (cursor + 1) % ring;
+      if (i + 1 >= state.hw) {
+        state.hw = i + 1;
+        state.hwAt = t;
+      }
 
       // Radius comes from uSurface in the shader; this only needs the direction.
       latLngToVec3(e.latitude, e.longitude, R, base);
       dir.copy(base).normalize();
       const len = b.length + e.intensity * b.lengthByIntensity;
-      let col: readonly number[];
-      if (b.colorMode === "fixed") {
-        fixed.set(b.color);
-        col = [fixed.r, fixed.g, fixed.b];
-      } else {
-        col = SDK_COLORS[e.sdkFamily];
-      }
+      const col = b.colorMode === "fixed" ? fixedCol : SDK_COLORS[e.sdkFamily];
       const sdkI = SDK_INDEX[e.sdkFamily];
       const seed = Math.random();
 
@@ -595,12 +716,11 @@ export function Beams({
     }
     state.cursor = cursor;
 
-    for (const a of ["iPos", "iDir", "iColor", "iLen", "iSpawn", "iSdk", "iIntensity", "iSeed"]) {
-      state.rg.attributes[a].needsUpdate = true;
-    }
-    for (const a of ["position", "aDir", "aColor", "aSpawn", "aSdk", "aIntensity", "aSeed"]) {
-      state.sg.attributes[a].needsUpdate = true;
-    }
+    // The bar and ribbon geometries share these attribute objects, so one call
+    // covers both.
+    const written = Math.min(events.length, ring);
+    uploadRange(state.rg, BEAM_ATTRS, start, written, ring);
+    uploadRange(state.sg, SPRITE_ATTRS, start, written, ring);
   });
 
   return (

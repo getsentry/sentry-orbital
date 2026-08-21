@@ -138,6 +138,23 @@ Two behaviours worth knowing:
 
 The right-hand column is hidden below 1100px wide, so the bulletin goes with it.
 
+## Rendering quality
+
+Not a style control — a per-device setting, decided at load and not saved with
+anything. The design is the same on every tier: no effect is dropped, no
+geometry disappears, nothing moves. What scales is resolution, the globe-mask
+buffers, texture filtering, and the size of the painted map — the things that
+cost fill rate and startup time and that nobody looks at directly.
+
+The tier is guessed from what the browser reports about the hardware, which is
+thin and often wrong, so a measured governor sits behind it: if frames stay
+slower than ~45fps for two seconds it lowers resolution a step, up to three
+times. It only ever lowers. A governor that also raised it would sit at the
+boundary flipping between two settings, and a resolution change is visible.
+
+`?quality=low`, `?quality=medium` or `?quality=high` forces a tier, which is
+the only practical way to see what someone else's device is seeing.
+
 ## Controls appear only when they apply
 
 The panel hides anything that wouldn't do anything in the current setup, so if a

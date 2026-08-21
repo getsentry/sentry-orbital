@@ -60,7 +60,10 @@ export function Effects({ style }: { style: GlobeStyle }) {
   // that borrowed colour — so the beam reads as fringed even though its own
   // pixels are protected. Running first also matches what the effects are:
   // aberration happens at the lens, pixelation and scanlines at the display.
-  if (e.chromaticAberration.enabled) {
+  // Offset 0 shifts no channel, but the effect would still cost two extra full
+  // scene passes every frame to build a mask nothing then reads.
+  const aberration = e.chromaticAberration.enabled && e.chromaticAberration.offset !== 0;
+  if (aberration) {
     children.push(<MapAberration key="ca" mask={mask} offset={e.chromaticAberration.offset} />);
   }
   if (e.bloom.enabled) {
@@ -134,7 +137,7 @@ export function Effects({ style }: { style: GlobeStyle }) {
   // known source of blocky artifacts; the effect passes do their own AA.
   return (
     <>
-      {e.chromaticAberration.enabled && <MaskPass mask={mask} />}
+      {aberration && <MaskPass mask={mask} />}
       <EffectComposer
         key={children.map((c) => (c as any).key).join("|")}
         multisampling={0}

@@ -11,6 +11,7 @@ import { Beams } from "./Beams";
 import { Effects } from "./Effects";
 import { Globe } from "./Globe";
 import { PerfProbe } from "./PerfProbe";
+import { quality } from "./quality";
 import { Starfield } from "./Starfield";
 import { Ufo } from "./Ufo";
 
@@ -36,6 +37,68 @@ function lens(c: GlobeStyle["camera"]) {
   const k =
     Math.tan((c.fov * Math.PI) / 360) / Math.tan((fov * Math.PI) / 360);
   return { fov, distance: c.distance * k, scale: k };
+}
+
+// ------------------------------------------------------- resolution -------
+/** Frames are averaged over this long before the result counts for anything. */
+const GOVERN_WINDOW_S = 1;
+/** Slower than this and the device is not keeping up. ~45fps. */
+const GOVERN_SLOW_MS = 22;
+/** Consecutive slow windows before acting, so one hitch is not a verdict. */
+const GOVERN_STRIKES = 2;
+const GOVERN_STEPS = 3;
+const GOVERN_STEP = 0.8;
+const GOVERN_FLOOR = 0.75;
+/** Startup paints the map texture and compiles every shader. Those frames say
+ *  nothing about how the device will run once it is going. */
+const GOVERN_WARMUP_S = 3;
+
+/**
+ * Drops resolution when the device cannot hold a frame rate, and never raises
+ * it again.
+ *
+ * The quality tier is guessed from what the browser reports about the hardware,
+ * which is thin and sometimes wrong. This is the part that actually knows: it
+ * watches real frames and, if they are consistently slow, gives back the one
+ * thing that always helps and nobody looks at directly.
+ *
+ * Downgrade-only on purpose. A governor that also raised resolution would sit
+ * at the boundary flipping between two settings, and a resolution change is
+ * visible — better to settle somewhere slightly too safe and stay there.
+ */
+function ResolutionGovernor() {
+  const setDpr = useThree((s) => s.setDpr);
+  const acc = useRef({ frames: 0, elapsed: 0, warm: 0, strikes: 0, steps: 0 });
+
+  useFrame((state, dt) => {
+    const a = acc.current;
+    if (a.steps >= GOVERN_STEPS) return;
+    // A backgrounded tab hands back one enormous delta on return. That is the
+    // page not being drawn, not the device failing to draw it.
+    if (dt > 0.1) return;
+    if (a.warm < GOVERN_WARMUP_S) {
+      a.warm += dt;
+      return;
+    }
+
+    a.frames++;
+    a.elapsed += dt;
+    if (a.elapsed < GOVERN_WINDOW_S) return;
+
+    const ms = (a.elapsed / a.frames) * 1000;
+    a.frames = 0;
+    a.elapsed = 0;
+    a.strikes = ms > GOVERN_SLOW_MS ? a.strikes + 1 : 0;
+    if (a.strikes < GOVERN_STRIKES) return;
+
+    a.strikes = 0;
+    a.steps++;
+    // Stepped down from where it actually is, not from the tier's ceiling —
+    // on a device already below the cap, stepping from the cap would be a rise.
+    setDpr(Math.max(GOVERN_FLOOR, state.viewport.dpr * GOVERN_STEP));
+  });
+
+  return null;
 }
 
 /** Drag to rotate + scroll to zoom, clamped to the configured distance range. */
@@ -285,7 +348,7 @@ export function Scene({
   return (
     <Canvas
       camera={{ position: [0, style.camera.tilt, style.camera.distance], fov: style.camera.fov }}
-      dpr={[1, 2]}
+      dpr={[1, quality.maxDpr]}
       shadows={style.shadows.enabled}
       gl={{ antialias: true }}
       onCreated={(state) => {
@@ -297,6 +360,7 @@ export function Scene({
       <color attach="background" args={[style.background.color]} />
       <RendererSettings style={style} />
       <PerfProbe />
+      <ResolutionGovernor />
       <Controls style={style} />
       <Lights style={style} />
       {style.stars.enabled && <Starfield style={style} />}

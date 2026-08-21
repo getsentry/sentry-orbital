@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { quality } from "./quality";
 
 /**
  * Objects on this layer are "the map" for masking purposes. They stay on the
@@ -43,8 +44,12 @@ export class GlobeMask {
 
   render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
     renderer.getDrawingBufferSize(this.size);
-    const w = Math.max(1, this.size.x);
-    const h = Math.max(1, this.size.y);
+    // The mask answers "how much of this pixel is bare map?" — a soft coverage
+    // ramp read through a linear filter, not a picture. It survives being drawn
+    // smaller, and it is the only part of the frame that costs two extra full
+    // scene passes, so this is where resolution is worth trading first.
+    const w = Math.max(1, Math.round(this.size.x * quality.maskScale));
+    const h = Math.max(1, Math.round(this.size.y * quality.maskScale));
     if (this.globeTarget.width !== w || this.globeTarget.height !== h) {
       this.globeTarget.setSize(w, h);
       this.foreTarget.setSize(w, h);

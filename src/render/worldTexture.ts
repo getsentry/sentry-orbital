@@ -1,38 +1,6 @@
 import * as THREE from "three";
 import { MAP_H, MAP_W, landAtCell } from "../data/worldmap";
-
-/**
- * Bilinear sample of the binary land mask, returning fractional coverage.
- * Nearest-neighbour sampling here is what produces stair-stepped coastlines:
- * every source pixel becomes a hard block. Interpolating gives a sub-pixel
- * edge position, which the caller can then threshold smoothly.
- */
-function coverageAt(u: number, t: number): number {
-  const SW = MAP_W;
-  const SH = MAP_H;
-  const x = u * SW - 0.5;
-  const y = t * SH - 0.5;
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const fx = x - x0;
-  const fy = y - y0;
-  const at = (xi: number, yi: number) => {
-    const cx = ((xi % SW) + SW) % SW; // longitude wraps
-    const cy = yi < 0 ? 0 : yi >= SH ? SH - 1 : yi;
-    return landAtCell(cx, cy) ? 1 : 0;
-  };
-  return (
-    at(x0, y0) * (1 - fx) * (1 - fy) +
-    at(x0 + 1, y0) * fx * (1 - fy) +
-    at(x0, y0 + 1) * (1 - fx) * fy +
-    at(x0 + 1, y0 + 1) * fx * fy
-  );
-}
-
-function smoothstep(e0: number, e1: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
-  return t * t * (3 - 2 * t);
-}
+import { quality } from "./quality";
 
 /**
  * Paints the full sphere (-90..90) from the cropped source bitmap, blending
@@ -56,23 +24,53 @@ function paintSphere(W: number, H: number, land: string, ocean: string): HTMLCan
   // Antialias band ~= one source texel, expressed in coverage units.
   const aa = 0.28;
 
+  // Each output pixel is a bilinear sample of the land mask, and the column
+  // half of that sample is identical on every row. Two million pixels each
+  // recomputing a floor, two wraps and a fraction is most of what painting
+  // this texture cost, so the columns are worked out once up front.
+  //
+  // three's SphereGeometry maps texture u directly to longitude
+  // (lng = 360u - 180), which is exactly the mask's own column mapping — so the
+  // texture column IS the mask column, with no conversion in between.
+  const colA = new Int32Array(W);
+  const colB = new Int32Array(W);
+  const colF = new Float32Array(W);
+  for (let x = 0; x < W; x++) {
+    const sx = ((x + 0.5) / W) * MAP_W - 0.5;
+    const x0 = Math.floor(sx);
+    colF[x] = sx - x0;
+    colA[x] = ((x0 % MAP_W) + MAP_W) % MAP_W; // longitude wraps
+    colB[x] = (((x0 + 1) % MAP_W) + MAP_W) % MAP_W;
+  }
+
+  const lo = 0.5 - aa;
+  const inv = 1 / (2 * aa);
+
   for (let y = 0; y < H; y++) {
-    // The mask is a true equirectangular grid, so texture row -> latitude and
-    // column -> longitude map straight through with no alignment fudge.
-    const t = (y + 0.5) / H;
+    // The mask is a true equirectangular grid, so texture row -> latitude maps
+    // straight through with no alignment fudge.
+    const sy = ((y + 0.5) / H) * MAP_H - 0.5;
+    const y0 = Math.floor(sy);
+    const fy = sy - y0;
+    const rowA = y0 < 0 ? 0 : y0 >= MAP_H ? MAP_H - 1 : y0;
+    const rowB = y0 + 1 < 0 ? 0 : y0 + 1 >= MAP_H ? MAP_H - 1 : y0 + 1;
+    let i = y * W * 4;
     for (let x = 0; x < W; x++) {
-      // three's SphereGeometry maps texture u directly to longitude
-      // (lng = 360u - 180), which is exactly the mask's own column mapping —
-      // so the texture column IS the mask column. The old helper round-tripped
-      // through a wrong [0,360)->[-180,180) conversion and shifted every
-      // continent by 180 degrees.
-      const u = (x + 0.5) / W;
-      const a = smoothstep(0.5 - aa, 0.5 + aa, coverageAt(u, t));
-      const i = (y * W + x) * 4;
-      d[i] = or_ + (lr - or_) * a;
-      d[i + 1] = og + (lg - og) * a;
-      d[i + 2] = ob + (lb - ob) * a;
+      const ca = colA[x];
+      const cb = colB[x];
+      const fx = colF[x];
+      const cov =
+        (landAtCell(ca, rowA) ? 1 : 0) * (1 - fx) * (1 - fy) +
+        (landAtCell(cb, rowA) ? 1 : 0) * fx * (1 - fy) +
+        (landAtCell(ca, rowB) ? 1 : 0) * (1 - fx) * fy +
+        (landAtCell(cb, rowB) ? 1 : 0) * fx * fy;
+      const k = (cov - lo) * inv;
+      const s = k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
+      d[i] = or_ + (lr - or_) * s;
+      d[i + 1] = og + (lg - og) * s;
+      d[i + 2] = ob + (lb - ob) * s;
       d[i + 3] = 255;
+      i += 4;
     }
   }
   ctx.putImageData(img, 0, 0);
@@ -105,7 +103,9 @@ function toTexture(canvas: HTMLCanvasElement): THREE.CanvasTexture {
   tex.minFilter = THREE.LinearFilter;
   tex.magFilter = THREE.LinearFilter;
   tex.generateMipmaps = false;
-  tex.anisotropy = 16;
+  // With no mipmaps every anisotropic tap is a full sample of a 2048-wide
+  // texture, so this is a straight multiplier on the globe's fragment cost.
+  tex.anisotropy = quality.anisotropy;
   tex.needsUpdate = true;
   return tex;
 }
@@ -115,7 +115,9 @@ export function makeColorTexture(
   oceanColor: string,
   softness: number,
 ): THREE.CanvasTexture {
-  return toTexture(blurred(paintSphere(2048, 1024, landColor, oceanColor), softness));
+  return toTexture(
+    blurred(paintSphere(quality.mapWidth, quality.mapWidth / 2, landColor, oceanColor), softness),
+  );
 }
 
 /**
@@ -130,7 +132,12 @@ export function makeHeightTexture(
   softness: number,
   bevel = 0,
 ): THREE.CanvasTexture {
-  const canvas = blurred(paintSphere(1024, 512, "#ffffff", "#000000"), softness);
+  // Half the colour map: this drives displacement, which the sphere's own
+  // tessellation limits long before the height field's resolution does.
+  const canvas = blurred(
+    paintSphere(quality.mapWidth / 2, quality.mapWidth / 4, "#ffffff", "#000000"),
+    softness,
+  );
 
   if (bevel > 0) {
     const ctx = canvas.getContext("2d")!;

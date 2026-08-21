@@ -46,12 +46,17 @@ export function Globe({ style }: { style: GlobeStyle }) {
 
   const dotTex = useMemo(() => makeDotTexture(d.shape), [d.shape]);
   const segments = g.mode === "relief" ? Math.max(g.segments, MIN_RELIEF_SEGMENTS) : g.segments;
+  // A UV sphere's width segments span 360 degrees and its height segments 180,
+  // so equal angular resolution wants half as many rows as columns. Matching
+  // them made every quad twice as tall as it was wide and doubled the triangle
+  // count for detail in a direction that was already the finer of the two.
+  const rows = Math.max(2, Math.round(segments / 2));
 
   return (
     <group>
       {g.visible && (
         <mesh ref={markGlobe} receiveShadow={g.receiveShadow} castShadow={g.receiveShadow}>
-          <sphereGeometry args={[R * g.radiusScale, segments, segments]} />
+          <sphereGeometry args={[R * g.radiusScale, segments, rows]} />
           <GlobeMaterial style={style} colorTex={colorTex} heightTex={heightTex} />
         </mesh>
       )}
