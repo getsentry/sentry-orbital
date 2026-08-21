@@ -101,7 +101,20 @@ function loading(): Step {
   };
 }
 
-const SOURCE = config.eventSource === "real" ? "LIVE-API" : "SYNTHETIC";
+/** What the log is allowed to claim it found.
+ *
+ *  A production build is hard-wired to the live feed — the factory ignores
+ *  `config.eventSource` entirely there — so reading the config alone had the
+ *  boot screen announcing SYNTHETIC over a deployed page that was in fact on
+ *  the real stream. `auto` is named as itself rather than guessed at: it starts
+ *  synthetic and may switch a second later, and neither label would stay true. */
+const SOURCE = import.meta.env.PROD
+  ? "LIVE-API"
+  : config.eventSource === "real"
+    ? "LIVE-API"
+    : config.eventSource === "synthetic"
+      ? "SYNTHETIC"
+      : "AUTO";
 
 // Real numbers, every one of them: what the log claims to have found is what
 // the app actually starts up with.
