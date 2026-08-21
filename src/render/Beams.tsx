@@ -602,6 +602,13 @@ export function Beams({
     const blend = b.additive ? THREE.AdditiveBlending : THREE.NormalBlending;
     state.ribbonMat.blending = blend;
     state.spriteMat.blending = blend;
+    // quadMat too, and it is the easy one to forget: it borrows ribbonMat's
+    // uniforms object wholesale, so every uniform written above reaches it for
+    // free — but blending is a property of the material, not a uniform, and
+    // does not come along. It draws the `line` style, which is the default, so
+    // leaving it out is the difference between the switch working and the
+    // switch doing nothing.
+    state.quadMat.blending = blend;
     const barsShown = b.visible && isBar;
     const ribbonsShown = b.visible && isRibbon;
     const spritesShown = b.visible && !isBar && !isRibbon;
