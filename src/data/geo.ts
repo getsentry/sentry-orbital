@@ -439,3 +439,24 @@ export const COUNTRY_CENTROIDS: Readonly<Record<string, [number, number]>> = {
 export function centroidFor(cc: string): [number, number] {
   return COUNTRY_CENTROIDS[cc?.toUpperCase()] ?? [0, 0];
 }
+
+/**
+ * Where each region sits, as one longitude, weighted by the same city weights
+ * the generator spawns from — so the focus lands where the traffic actually is
+ * rather than on the geometric middle of a bounding box.
+ *
+ * Averaged as a circular mean. Longitudes wrap at the antimeridian, so a plain
+ * arithmetic mean puts APAC — which straddles it — somewhere near Africa.
+ */
+export const REGION_LNG: Record<string, number> = (() => {
+  const acc: Record<string, { x: number; y: number }> = {};
+  for (const c of CITIES) {
+    const a = (c.lng * Math.PI) / 180;
+    const e = (acc[c.region] ??= { x: 0, y: 0 });
+    e.x += Math.cos(a) * c.weight;
+    e.y += Math.sin(a) * c.weight;
+  }
+  return Object.fromEntries(
+    Object.entries(acc).map(([k, v]) => [k, (Math.atan2(v.y, v.x) * 180) / Math.PI]),
+  );
+})();

@@ -2,10 +2,13 @@ import { config } from "../config";
 import type { EventSource, SdkFamily, TelemetryEvent } from "../types";
 import { SDK_FAMILIES } from "../types";
 
+export const REGIONS = ["Americas", "EMEA", "APAC"] as const;
+
 export type Stats = {
   eventsPerSecond: number;
   total: number;
   sdkCounts: Record<SdkFamily, number>;
+  regionCounts: Record<string, number>;
 };
 
 type Stamped = { t: number; e: TelemetryEvent };
@@ -33,6 +36,15 @@ export class EventBuffer {
     this.source.stop();
   }
 
+  /** Newest-last slice of the rolling window, for the stream log. */
+  recent(n: number): TelemetryEvent[] {
+    const out: TelemetryEvent[] = [];
+    for (let i = Math.max(0, this.window.length - n); i < this.window.length; i++) {
+      out.push(this.window[i].e);
+    }
+    return out;
+  }
+
   /** Renderer pulls everything new since the last frame. */
   drain(): TelemetryEvent[] {
     if (this.queue.length === 0) return EMPTY;
@@ -47,16 +59,23 @@ export class EventBuffer {
     while (drop < this.window.length && this.window[drop].t < cutoff) drop++;
     if (drop > 0) this.window.splice(0, drop);
 
-    const sdkCounts = Object.fromEntries(SDK_FAMILIES.map((s) => [s, 0])) as Record<
-      SdkFamily,
-      number
-    >;
-    for (const { e } of this.window) sdkCounts[e.sdkFamily]++;
+    const sdkCounts = zero(SDK_FAMILIES) as Record<SdkFamily, number>;
+    const regionCounts = zero(REGIONS) as Record<string, number>;
+
+    for (const { e } of this.window) {
+      sdkCounts[e.sdkFamily]++;
+      if (e.region) regionCounts[e.region] = (regionCounts[e.region] ?? 0) + 1;
+    }
 
     return {
       eventsPerSecond: this.window.length / (config.statsWindowMs / 1000),
       total: this.total,
       sdkCounts,
+      regionCounts,
     };
   }
+}
+
+function zero(keys: readonly string[]): Record<string, number> {
+  return Object.fromEntries(keys.map((k) => [k, 0]));
 }
