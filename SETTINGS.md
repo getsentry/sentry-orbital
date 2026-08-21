@@ -92,6 +92,27 @@ and coordinates. There is no event type on the live payload, and the region is
 the same coarse longitude bucket the **ORIGIN** panel counts, not a country.
 
 
+## Alerts bulletin
+
+Top right. Derived live from the same rolling stats the panels read — throughput
+against its own trailing baseline, error share per SDK family, and regional
+concentration — so a line only appears when something actually moved in the
+stream. Each entry links out to sentry.io.
+
+Nothing in it identifies a customer, project, user or issue: the bulletin only
+ever names an SDK family, a region and a rate.
+
+Two behaviours worth knowing:
+
+- Alerts are on a cooldown per kind, so one storm produces one line rather than
+  a screenful of the same thing.
+- A stalled stream is treated as the tab being backgrounded, not as an outage.
+  The generator runs off requestAnimationFrame, which browsers suspend on a
+  hidden tab, so it would otherwise report a 100% drop on leaving and a spike on
+  returning.
+
+The right-hand column is hidden below 1100px wide, so the bulletin goes with it.
+
 ## Controls appear only when they apply
 
 The panel hides anything that wouldn't do anything in the current setup, so if a
