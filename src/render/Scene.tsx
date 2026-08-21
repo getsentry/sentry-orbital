@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { config } from "../config";
+import { REGION_LNG } from "../data/geo";
 import type { EventBuffer } from "../data/eventBuffer";
 import type { GlobeStyle } from "../style";
 import type { SdkFamily } from "../types";
@@ -210,33 +211,73 @@ function RendererSettings({ style }: { style: GlobeStyle }) {
   return null;
 }
 
+/** Where a region's traffic sits, as a direction in the globe's own frame.
+ *  Derived from latLngToVec3: a point at longitude L lands at azimuth
+ *  PI - (L + 180) in radians. */
+function localAzimuth(lng: number): number {
+  return Math.PI - ((lng + 180) * Math.PI) / 180;
+}
+
 /**
  * Rotates the globe on its own axis. Beams live on the surface so they must
  * spin with it; lights and stars stay outside this group, which is what lets a
  * fixed light behave like a real sun.
+ *
+ * Hovering a region in the ORIGIN panel takes the wheel: the spin stops and the
+ * globe turns that region to face the camera. Camera azimuth is read live, so
+ * the region still lands in front of you after you have dragged the view
+ * somewhere else.
  */
 function SpinningWorld({
   style,
+  focus,
   children,
 }: {
   style: GlobeStyle;
+  focus: string | null;
   children: React.ReactNode;
 }) {
   const ref = useRef<THREE.Group>(null);
+  const camera = useThree((s) => s.camera);
+
   useFrame((_, dt) => {
-    if (!ref.current || !style.globe.autoRotate) return;
-    ref.current.rotation.y += style.globe.rotateSpeed * Math.min(dt, 0.05);
+    const g = ref.current;
+    if (!g) return;
+    const d = Math.min(dt, 0.05);
+
+    const lng = focus === null ? undefined : REGION_LNG[focus];
+    if (lng !== undefined) {
+      // Rotating the group by t sends a local azimuth a to a - t, so the
+      // rotation that parks it under the camera is a - cameraAzimuth.
+      const camAz = Math.atan2(camera.position.z, camera.position.x);
+      const target = localAzimuth(lng) - camAz;
+      // Shortest way round, or the globe takes the long way for a region just
+      // behind the antimeridian.
+      const delta = Math.atan2(
+        Math.sin(target - g.rotation.y),
+        Math.cos(target - g.rotation.y),
+      );
+      g.rotation.y += delta * Math.min(1, d * 4);
+      return;
+    }
+
+    if (!style.globe.autoRotate) return;
+    g.rotation.y += style.globe.rotateSpeed * d;
   });
+
   return <group ref={ref}>{children}</group>;
 }
 
 export function Scene({
   buffer,
   hoveredSdk,
+  focusRegion,
   style,
 }: {
   buffer: EventBuffer;
   hoveredSdk: SdkFamily | null;
+  /** Region hovered in the ORIGIN panel, or null. */
+  focusRegion: string | null;
   style: GlobeStyle;
 }) {
   return (
@@ -257,7 +298,7 @@ export function Scene({
       <Controls style={style} />
       <Lights style={style} />
       {style.stars.enabled && <Starfield style={style} />}
-      <SpinningWorld style={style}>
+      <SpinningWorld style={style} focus={focusRegion}>
         <Globe style={style} />
         <Beams buffer={buffer} hoveredSdk={hoveredSdk} style={style} />
       </SpinningWorld>

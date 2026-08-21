@@ -14,8 +14,6 @@ export function CrtFrame() {
       </div>
 
       <div className="crt-plate">
-        <span className="crt-led" />
-        <span className="crt-plate-text">ORBITAL&nbsp;&nbsp;OS-9</span>
         <span className="crt-plate-vents" />
       </div>
     </div>

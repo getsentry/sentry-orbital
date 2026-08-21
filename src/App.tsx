@@ -19,6 +19,7 @@ const PerfHud = import.meta.env.DEV ? lazy(() => import("./ui/PerfHud")) : null;
 
 export default function App() {
   const [hoveredSdk, setHoveredSdk] = useState<SdkFamily | null>(null);
+  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
   // Start from whatever was last tinkered into localStorage, else the defaults.
   const initialStyle = useMemo(() => withDefaults(loadSavedStyle() ?? DEFAULT_STYLE), []);
   const [style, setStyle] = useState<GlobeStyle>(initialStyle);
@@ -73,8 +74,21 @@ export default function App() {
 
   return (
     <>
-      <Scene buffer={buffer} hoveredSdk={hoveredSdk} style={style} />
-      <Chrome buffer={buffer} hoveredSdk={hoveredSdk} setHoveredSdk={setHoveredSdk} />
+      <Scene
+        buffer={buffer}
+        hoveredSdk={hoveredSdk}
+        focusRegion={hoveredRegion}
+        style={style}
+      />
+      <Chrome
+        buffer={buffer}
+        hoveredSdk={hoveredSdk}
+        setHoveredSdk={setHoveredSdk}
+        hoveredRegion={hoveredRegion}
+        setHoveredRegion={setHoveredRegion}
+        dev={dev}
+        toggleConfig={toggleConfig}
+      />
       {perf && PerfHud && (
         <Suspense fallback={null}>
           <PerfHud buffer={buffer} />

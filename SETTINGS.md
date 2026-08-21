@@ -16,6 +16,11 @@ Drag to turn the globe. There is no zoom — it was the only way to push the glo
 past the fit below, and a view you can shove off the edge of the screen is not
 worth the control.
 
+Hovering a region in the **ORIGIN** panel turns that region to face you and
+holds the auto-rotation while you hover. The camera's own angle is read live, so
+the region still arrives in front of you after you have dragged the view
+somewhere else.
+
 ## The globe always fits the viewport
 
 `distance` frames the globe, but it can never bring it in closer than the frame
@@ -32,6 +37,60 @@ stranded small.
 
 Consequence: on a narrow screen `distance` stops having an effect below the fit.
 That is the constraint doing its job, not the control breaking.
+
+## Rate gauge
+
+Top left, under the day's total. A zoned bargraph rather than a number on its
+own, because "48.6 events a second" only means something next to what this feed
+usually does: mint for the lower half of the dial, amber above it, red past the
+redline at 80% of full scale. The readout takes its colour from the zone it is
+in, so the number and the bar can be read as one instrument.
+
+The pale needle is a peak hold — the highest rate of the last few seconds. It
+sits still for a beat after a burst and then walks back down to the live rate
+rather than snapping, so a spike stays legible after it has passed.
+
+The dial auto-ranges, which is the one behaviour worth knowing:
+
+- Full scale is the recent high-water rate rounded up to a round gradation, and
+  it is printed off the right end of the bar. The left end is unlabelled — a
+  bargraph starts at zero without being told.
+- It widens the instant traffic needs the room, and narrows only after the rate
+  has stayed well clear of the step below for a couple of minutes. A rate parked
+  on a boundary would otherwise re-range the bar every tick.
+- The bar keeps its length through a re-range: the room for that number is
+  reserved whether it reads `60` or `1.6k`.
+- It starts at the synthetic generator's ceiling purely so the first frames have
+  a sane dial. With the live feed the range becomes whatever that feed actually
+  does within a minute or two.
+
+So the zones are relative to this stream's own recent peak, not to any absolute
+notion of "busy" — red means *as loud as it has lately been*, which is the only
+threshold the client can honestly know.
+
+## Event stream
+
+Right-hand column. One row arrives per data tick, newest at the top, and the
+whole column slides down to make room for it — the motion is what makes a wall
+of fixed-width text readable as a stream rather than as churn.
+
+It is a **sample, not a queue**. At 40 events a second the panel used to redraw
+two thirds of its rows every tick, so nothing could be followed; now each tick
+admits the newest event and drops whatever else arrived alongside it. Dropping
+rather than queueing is deliberate — a queue drained at a readable pace would
+fall minutes behind within a minute, and the timestamps would be fiction. The
+header carries the ratio (`1:14` = one row shown per fourteen received), so what
+is missing is stated rather than implied.
+
+The newest row arrives in mint and cools to normal ink as later rows push it
+down, and the bottom of the column fades out with age. Neither is decoration:
+between them they say where to look and how old a row is without spending a
+column on either. Both stand down under `prefers-reduced-motion`.
+
+Rows carry only what the feed actually has — time, SDK family, region bucket,
+and coordinates. There is no event type on the live payload, and the region is
+the same coarse longitude bucket the **ORIGIN** panel counts, not a country.
+
 
 ## Controls appear only when they apply
 

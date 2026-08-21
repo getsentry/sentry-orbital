@@ -13,8 +13,8 @@ body,
 }
 
 body {
-  font-family: "Rubik", sans-serif;
-  color: #e7ecf6;
+  font-family: "Departure Mono", monospace;
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -27,21 +27,55 @@ canvas {
   touch-action: none;
 }
 
-/* ---------- retro palette ---------- */
+/* ---------- type ---------- */
+
+@font-face {
+  font-family: "Departure Mono";
+  src: url("/fonts/DepartureMono-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+/* ---------- palette ---------- */
 
 :root {
-  --phos: #7ef7c8; /* phosphor green, the dominant UI ink */
-  --phos-dim: #3f8f74;
-  --amber: #ffb35c;
+  /* Borrowed from the diagnostic HUD — cool blue-grey reads as part of the
+     globe's own scene instead of sitting on top of it. Three accents, and
+     they are the gauge's three zones: mint for "live", amber for "errors" and
+     for a rate climbing, red for one at the top of its dial. */
+  --ink: #cdd6e8;
+  --ink-hi: #e7ecf6;
+  --ink-dim: #6b7794;
+  --ink-faint: #46506a;
+  --line: rgba(130, 160, 235, 0.3);
+  --line-soft: rgba(130, 160, 235, 0.14);
+  --panel: rgba(8, 12, 22, 0.88);
+  --accent: #4ff0a5;
+  --accent-dim: rgba(79, 240, 165, 0.45);
+  --warn: #ffb64d;
+  --crit: #ff5a5a;
+  --sink: #06111a; /* punch-through for inverse video */
+
+  /* Boot screen only — the overlay stays cool, the cold-start is neon. */
+  --neon: #ff7a18;
+  --neon-hi: #ffc46b;
+  --neon-deep: #ff4d00;
+
   --bezel: #14161c;
   --bezel-hi: #2b2f3a;
-  --tube-r: 46px; /* corner radius of the "glass" */
+  --tube-r: 12px; /* corner radius of the "glass" — sharp, but not square */
   --tube-inset: 26px; /* how much plastic surrounds the tube */
   /* where the glass starts — shared by the bezel, the boot screen and the
      readouts, so they all move together if the bezel is retuned */
   --screen-t: var(--tube-inset);
   --screen-b: var(--tube-inset);
   --r-in: var(--tube-r);
+
+  /* Departure Mono is a pixel face — it wants whole-pixel sizes, so this steps
+     rather than scaling fluidly. */
+  --cell: 11px;
+  --lh: 1.5;
 }
 
 /* ---------- chrome ---------- */
@@ -52,46 +86,30 @@ canvas {
   pointer-events: none;
   z-index: 10;
 }
-.chrome > * {
-  pointer-events: auto;
-}
 
-.brand {
-  position: absolute;
-  top: calc(var(--screen-t) + 16px);
-  left: calc(var(--screen-t) + 22px);
-  font-family: "VT323", monospace;
-  font-size: 30px;
-  line-height: 1;
-  letter-spacing: 0.34em;
-  color: var(--phos);
-  text-shadow: 0 0 6px rgba(126, 247, 200, 0.7), 0 0 22px rgba(126, 247, 200, 0.35);
+/* `F` — hide the readouts for a clean shot of the globe. Faded rather than
+   unmounted so the trend history keeps filling while it's off screen. */
+.chrome .tbar,
+.chrome .term-body,
+.chrome .kbar {
+  transition: opacity 0.25s ease;
 }
-.brand-sub {
-  display: block;
-  margin-top: 3px;
-  font-family: "Share Tech Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 0.36em;
-  color: var(--phos-dim);
-  text-shadow: 0 0 8px rgba(126, 247, 200, 0.3);
-}
-
-/* `F` — hide the readouts, keep the CRT shell. Faded rather than unmounted so
-   the sparkline history keeps filling while it's off screen. */
-.chrome .brand,
-.chrome .leaderboard {
-  transition:
-    opacity 0.25s ease,
-    transform 0.25s ease;
-}
-.chrome.is-clean .brand,
-.chrome.is-clean .leaderboard,
-.chrome.is-booting .brand,
-.chrome.is-booting .leaderboard {
+.chrome.is-clean .tbar,
+.chrome.is-clean .term-body,
+.chrome.is-booting .tbar,
+.chrome.is-booting .term-body,
+.chrome.is-booting .kbar {
   opacity: 0;
-  transform: translateY(4px);
   pointer-events: none;
+}
+/* The commands stay reachable while hidden — otherwise clicking [F] removes the
+   only affordance for undoing it, and the way back is keyboard-only. */
+.chrome.is-clean .kbar {
+  opacity: 0.16;
+}
+.chrome.is-clean .kbar:hover,
+.chrome.is-clean .kbar:focus-within {
+  opacity: 1;
 }
 
 /* ---------- dev style panel (leva) ---------- */
@@ -106,157 +124,330 @@ canvas {
   z-index: 1000;
 }
 
-/* ---------- SDK leaderboard ---------- */
+/* ---------- terminal overlay ---------- */
 
-.leaderboard {
+.term {
   position: absolute;
-  left: calc(var(--screen-t) + 22px);
-  bottom: calc(var(--screen-b) + 18px);
-  width: 274px;
-  padding: 10px 12px 8px;
-  font-family: "Share Tech Mono", monospace;
-  background: linear-gradient(180deg, rgba(10, 20, 17, 0.82), rgba(6, 11, 10, 0.88));
-  border: 1px solid rgba(126, 247, 200, 0.34);
-  border-radius: 3px;
-  box-shadow:
-    0 0 0 1px rgba(126, 247, 200, 0.08),
-    0 0 26px rgba(126, 247, 200, 0.14),
-    inset 0 0 34px rgba(126, 247, 200, 0.06);
-  backdrop-filter: blur(3px);
-}
-/* corner brackets */
-.leaderboard::before,
-.leaderboard::after {
-  content: "";
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  border: 1px solid var(--phos);
-  opacity: 0.85;
-}
-.leaderboard::before {
-  top: -1px;
-  left: -1px;
-  border-right: 0;
-  border-bottom: 0;
-}
-.leaderboard::after {
-  bottom: -1px;
-  right: -1px;
-  border-left: 0;
-  border-top: 0;
-}
-
-.lb-head {
+  inset: calc(var(--screen-t) + 14px) calc(var(--screen-t) + 16px)
+    calc(var(--screen-b) + 12px);
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
-  padding-bottom: 7px;
-  margin-bottom: 5px;
-  border-bottom: 1px solid rgba(126, 247, 200, 0.22);
+  font-family: "Departure Mono", monospace;
+  font-size: var(--cell);
+  line-height: var(--lh);
+  letter-spacing: 0;
+  color: var(--ink);
+  /* pixel font: no antialiasing, or the glyph grid turns to mush */
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  white-space: pre;
+  pointer-events: none;
+  /* The overlay is text, so without this the pointer turns into an I-beam the
+     moment it crosses a panel. */
+  cursor: default;
+  user-select: none;
 }
-.lb-title {
-  font-size: 11px;
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  color: var(--phos);
-  text-shadow: 0 0 8px rgba(126, 247, 200, 0.55);
+/* Only the panels take the mouse. The layout containers span the middle of the
+   screen, so leaving them interactive would swallow every drag on the globe. */
+.pnl {
+  pointer-events: auto;
 }
-.lb-live {
-  margin-left: auto;
+
+.term-body {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 0;
+}
+/* Each column pins content to both ends of its own height — the headline card
+   sits top-left, everything else hangs off the bottom. */
+.term-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+}
+.term-col-r {
+  justify-content: space-between;
+}
+.term-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* ---------- top / bottom rules ---------- */
+
+.tbar,
+.kbar {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  color: var(--amber);
-  text-shadow: 0 0 8px rgba(255, 179, 92, 0.5);
+  gap: 2ch;
+  color: var(--ink-dim);
 }
-.lb-live i {
-  width: 5px;
-  height: 5px;
+.tbar-l {
+  color: var(--ink-hi);
+  min-width: 0;
+  overflow: hidden;
+}
+/* The live readout is the one thing that must never be clipped, so it never
+   shrinks and everything to its left gives way first. */
+.tbar-live {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+  color: var(--accent);
+}
+/* The font has no U+25CF, and a drawn dot blinks better than a glyph anyway. */
+.tbar-live .dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 7px var(--amber);
-  animation: lb-blink 1.6s steps(1, end) infinite;
+  background: var(--accent);
+  box-shadow: 0 0 7px var(--accent);
+  animation: blink 2.6s steps(1, end) infinite;
 }
-@keyframes lb-blink {
+@keyframes blink {
   0%,
   55% {
     opacity: 1;
   }
   56%,
   100% {
-    opacity: 0.15;
+    opacity: 0.12;
   }
 }
 
-.lb-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 5px;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1.35;
-  transition:
-    background 0.14s,
-    opacity 0.14s;
-}
-.lb-row:hover {
-  background: linear-gradient(90deg, rgba(126, 247, 200, 0.14), rgba(126, 247, 200, 0));
-  box-shadow: inset 2px 0 0 var(--sdk);
-}
-.lb-row.is-dim {
-  opacity: 0.3;
-}
-.lb-row .rank {
-  color: var(--phos-dim);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-}
-.lb-row .sw {
-  width: 7px;
-  height: 7px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--sdk);
-  box-shadow: 0 0 7px var(--sdk);
-}
-.lb-row .name {
-  flex: 1;
-  color: #cfe9dd;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-  text-shadow: 0 0 7px rgba(126, 247, 200, 0.22);
-}
-
-.spark {
-  width: 71px;
-  height: 16px;
-  flex: none;
-  filter: drop-shadow(0 0 3px var(--sdk));
-}
-.spark-bed {
-  fill: rgba(126, 247, 200, 0.05);
-}
-
-.lb-foot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  padding-top: 5px;
-  border-top: 1px solid rgba(126, 247, 200, 0.16);
-  font-size: 9px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--phos-dim);
-}
-.lb-caret {
+.kbar-keys {
   margin-left: auto;
-  color: var(--phos);
-  animation: lb-blink 1.1s steps(1, end) infinite;
+  display: flex;
+  /* Wider than the space inside a command, so the row reads as three controls
+     rather than one run of words. */
+  gap: 2.25ch;
+  pointer-events: auto;
+}
+/* Buttons stripped back to plain terminal text — the shortcut and the click
+   target are one control. Cursor deliberately left alone. */
+.cmd {
+  font: inherit;
+  color: var(--ink-dim);
+  background: none;
+  border: 0;
+  /* No padding: the hover fill should hug the text like a terminal selection
+     rather than sit in a button-shaped box. */
+  padding: 0;
+  cursor: default;
+  letter-spacing: inherit;
+  -webkit-font-smoothing: none;
+}
+.cmd b {
+  font-weight: 400;
+  color: var(--accent);
+}
+/* A margin rather than a space character: the key and its word belong to each
+   other, and a full cell between them is more air than that needs. The hover
+   fill still spans the pair, so it stays one target. */
+.cmd-l {
+  margin-left: 0.5ch;
+}
+.cmd.is-on {
+  color: var(--ink-hi);
+}
+.cmd.is-on b {
+  color: var(--accent);
+}
+/* Last on purpose: `.cmd.is-on` matches at the same specificity as `.cmd:hover`,
+   so whichever is written later wins. Hover has to, or an enabled command keeps
+   its own colour and renders unreadably against the accent fill. */
+.cmd:hover,
+.cmd:focus-visible,
+.cmd:hover b,
+.cmd:focus-visible b {
+  color: #000;
+}
+.cmd:hover,
+.cmd:focus-visible {
+  background: var(--accent);
+  outline: none;
+}
+
+
+/* ---------- panels ---------- */
+
+.pnl {
+  color: var(--ink);
+  /* No backdrop-filter here on purpose. It samples the composited backdrop —
+     which is the WebGL canvas — so every globe frame invalidated the panels,
+     which invalidated the bulge filter on .term, which re-ran a ~1.1M-pixel
+     displacement pass at 60fps instead of on the 300ms data tick. A more
+     opaque fill buys the same legibility for nothing. */
+  background: var(--panel);
+}
+.pnl-rule {
+  color: var(--line);
+}
+.pnl-body {
+  position: relative;
+  padding: 0 2ch;
+}
+/* Rails are taken out of flow so the content decides the box height; the
+   overflow of the glyph column is simply clipped. */
+.pnl-rail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1ch;
+  overflow: hidden;
+  color: var(--line);
+}
+.pnl-rail-r {
+  left: auto;
+  right: 0;
+}
+
+.rows {
+  display: block;
+}
+.row {
+  color: var(--ink);
+}
+.row.dim {
+  color: var(--ink-dim);
+}
+.row.faint {
+  color: var(--ink-faint);
+}
+/* errors are the one thing worth a second colour */
+.row.is-err {
+  color: var(--warn);
+}
+.rule {
+  color: var(--line-soft);
+}
+/* Integer multiple of the cell size — a pixel font at a fractional scale turns
+   to mush. The rails keep the body's line-height, so they stay continuous. */
+.big {
+  font-size: calc(var(--cell) * 3);
+  line-height: 1.15;
+  color: var(--ink-hi);
+  /* At 3x the cell, 11 digits exactly fill the panel — clip rather than let a
+     longer count push through the right rail. */
+  overflow: hidden;
+  text-shadow: 0 0 18px rgba(79, 240, 165, 0.25);
+  margin: 2px 0 1px;
+}
+.mtr-on {
+  color: var(--accent);
+}
+.mtr-off {
+  /* The unfilled track carries a lot of ink at this size — without dropping the
+     glow and most of the alpha, an empty meter reads as a full one. */
+  color: rgba(130, 160, 235, 0.16);
+}
+
+/* ---------- rate gauge ---------- */
+
+/* Lit segments are the zone's own colour; the unlit track keeps that colour at
+   a fraction of the ink, so the red end of the dial is visible as red long
+   before the bar ever reaches it. */
+.gz-on-lo {
+  color: var(--accent);
+}
+.gz-on-mid {
+  color: var(--warn);
+}
+.gz-on-hi {
+  color: var(--crit);
+  text-shadow: 0 0 10px rgba(255, 90, 90, 0.45);
+}
+.gz-off-lo {
+  color: rgba(79, 240, 165, 0.13);
+}
+.gz-off-mid {
+  color: rgba(255, 182, 77, 0.14);
+}
+.gz-off-hi {
+  color: rgba(255, 90, 90, 0.22);
+}
+/* Peak-hold needle — the one thing on the bar that is not a zone colour, so it
+   reads as an annotation rather than as more bar. */
+.gz-pk {
+  color: var(--ink-hi);
+}
+.gz-cap {
+  color: var(--line);
+}
+/* The readout takes the colour of the zone it is sitting in: the number and the
+   bar can then be read as one instrument out of the corner of an eye. */
+.gv-lo {
+  color: var(--accent);
+}
+.gv-mid {
+  color: var(--warn);
+}
+.gv-hi {
+  color: var(--crit);
+}
+.gv-sub {
+  color: var(--ink-faint);
+}
+
+/* ---------- event stream ---------- */
+
+/* Fixed to a whole number of rows and clipped, so the row sliding in from above
+   and the one leaving the bottom are both hidden rather than spilling over the
+   header and the panel rule. */
+.stream {
+  overflow: hidden;
+  position: relative;
+  /* Age as a gradient: rows dissolve on their way down instead of vanishing off
+     a hard edge, which puts the eye on the fresh end of the column. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+}
+/* The rows themselves never move — the whole list is translated once per
+   arrival (see StreamPanel), which is one compositor transform rather than
+   eighteen rows being repainted. */
+.stream-row {
+  animation: stream-in 200ms ease-out;
+  transition: color 700ms ease-out;
+}
+/* The newest row arrives lit and then cools into the column as the next ones
+   push it down — a moving head, so the eye can follow one row for as long as it
+   takes to read it. No transition here on purpose: arriving should be instant
+   and only the fade away from it gradual. */
+.stream-row.is-head {
+  color: var(--accent);
+  transition: none;
+}
+.stream-mark {
+  color: var(--accent);
+}
+@keyframes stream-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stream-row {
+    animation: none;
+  }
+}
+
+/* inverse video for the selected row — the most terminal gesture there is */
+.row.is-sel,
+.row.is-sel .mtr-on,
+.row.is-sel .mtr-off {
+  background: var(--accent);
+  color: var(--sink);
 }
 
 /* ---------- CRT shell ---------- */
@@ -284,15 +475,15 @@ canvas {
     inset 0 0 0 1px rgba(150, 170, 200, 0.08),
     inset 0 0 60px rgba(0, 0, 0, 0.85);
 }
-/* soft inner lip so the glass reads as recessed, and lets the phosphor
+/* soft inner lip so the glass reads as recessed, and lets the screen's own
    glow spill a little onto the surrounding plastic */
 .crt-bezel-lip {
   position: absolute;
   inset: -1px;
   border-radius: var(--tube-r);
-  border: 1px solid rgba(126, 247, 200, 0.14);
+  border: 1px solid rgba(79, 240, 165, 0.14);
   box-shadow:
-    0 0 34px 4px rgba(126, 247, 200, 0.1),
+    0 0 34px 4px rgba(79, 240, 165, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
@@ -331,26 +522,10 @@ canvas {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-family: "Share Tech Mono", monospace;
+  font-family: "Departure Mono", monospace;
   font-size: 7px;
-  letter-spacing: 0.32em;
+  letter-spacing: 0.2em;
   color: #5c6373;
-}
-.crt-led {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #67ffbe;
-  box-shadow: 0 0 6px #67ffbe;
-  animation: lb-blink 3.2s steps(1, end) infinite;
-  transition:
-    background 0.4s,
-    box-shadow 0.4s;
-}
-/* amber while the machine is still coming up */
-.chrome.is-booting .crt-led {
-  background: #ff8a3d;
-  box-shadow: 0 0 6px #ff8a3d;
 }
 .crt-plate-vents {
   width: 34px;
@@ -366,29 +541,27 @@ canvas {
 
 /* ---------- boot sequence ---------- */
 
-/* Sits in the screen opening, under the shell (z 50 vs the shell's 60) so the
-   moulded lip overlaps its corners exactly like real glass. */
 .boot {
   position: absolute;
   inset: var(--screen-t) var(--screen-t) var(--screen-b);
   border-radius: var(--r-in);
   z-index: 50;
   overflow: hidden;
-  background: #04070a;
-  font-family: "Share Tech Mono", monospace;
-  font-size: clamp(10px, 1.35vmin, 15px);
-  line-height: 1.6;
-  color: var(--phos);
-  text-shadow:
-    0 0 5px rgba(126, 247, 200, 0.6),
-    0 0 18px rgba(126, 247, 200, 0.25);
+  background: #0a0400;
+  font-family: "Departure Mono", monospace;
+  font-size: var(--cell);
+  line-height: var(--lh);
+  color: var(--neon);
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  white-space: pre;
   transition:
     opacity 0.6s ease,
     filter 0.6s ease;
 }
 .boot.is-fading {
   opacity: 0;
-  filter: brightness(2.4);
+  filter: brightness(2.6);
   pointer-events: none;
 }
 
@@ -398,9 +571,9 @@ canvas {
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(190, 255, 230, 0) 0%,
-    rgba(226, 255, 244, 0.9) 50%,
-    rgba(190, 255, 230, 0) 100%
+    rgba(255, 150, 60, 0) 0%,
+    rgba(255, 226, 190, 0.9) 50%,
+    rgba(255, 150, 60, 0) 100%
   );
   transform-origin: 50% 50%;
   animation: boot-on 520ms cubic-bezier(0.16, 0.9, 0.3, 1) forwards;
@@ -424,16 +597,71 @@ canvas {
   }
 }
 
+.boot-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 1.8vmin, 22px);
+  padding: 4vmin;
+}
+
+/* The mark. line-height 1 so the block rows fuse into solid strokes, and a
+   four-stop shadow so the glow blooms the way phosphor does rather than
+   sitting as a flat halo. */
+.boot-logo {
+  margin: 0;
+  font-size: calc(var(--cell) * 2);
+  text-align: center;
+  line-height: 1;
+  color: var(--neon-hi);
+  text-shadow:
+    0 0 3px rgba(255, 200, 140, 0.95),
+    0 0 10px rgba(255, 122, 24, 0.8),
+    0 0 28px rgba(255, 77, 0, 0.55),
+    0 0 64px rgba(255, 60, 0, 0.32);
+  animation: boot-warm 1.5s steps(1, end) 1;
+}
+/* the mains settling — a couple of dropouts, then steady */
+@keyframes boot-warm {
+  0%,
+  6%,
+  14%,
+  26% {
+    opacity: 0.55;
+  }
+  3%,
+  10%,
+  20%,
+  100% {
+    opacity: 1;
+  }
+}
+
+.boot-sub {
+  letter-spacing: 0.32em;
+  color: var(--neon);
+  text-shadow: 0 0 10px rgba(255, 122, 24, 0.6);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.boot-sub.is-in {
+  opacity: 1;
+}
+
 .boot-log {
-  padding: clamp(16px, 3.4vmin, 44px) clamp(18px, 3.8vmin, 50px);
-  white-space: pre;
+  text-align: left;
+  text-shadow:
+    0 0 6px rgba(255, 122, 24, 0.55),
+    0 0 20px rgba(255, 77, 0, 0.25);
 }
 .boot-line {
   min-height: 1.6em;
 }
 .boot-ok {
-  color: var(--amber);
-  text-shadow: 0 0 7px rgba(255, 179, 92, 0.5);
+  color: var(--neon-hi);
 }
 .boot-caret {
   display: inline-block;
@@ -441,12 +669,20 @@ canvas {
   height: 1em;
   margin-left: 0.1em;
   vertical-align: -0.14em;
-  background: var(--phos);
-  box-shadow: 0 0 8px rgba(126, 247, 200, 0.7);
-  animation: lb-blink 1s steps(1, end) infinite;
+  background: var(--neon-hi);
+  box-shadow: 0 0 8px rgba(255, 122, 24, 0.8);
+  animation: blink 1s steps(1, end) infinite;
 }
 
-/* ---------- performance HUD (press M) ---------- */
+/* The mark is 19 rows — at 2x the cell that plus the POST log overruns the
+   centred column on a short viewport, so step it down rather than let it clip. */
+@media (max-height: 740px) {
+  .boot-logo {
+    font-size: var(--cell);
+  }
+}
+
+/* ---------- performance HUD (opens with the config panel) ---------- */
 
 .perf {
   position: absolute;
@@ -454,10 +690,11 @@ canvas {
   left: 26px;
   width: 208px;
   padding: 12px 13px 10px;
-  background: rgba(8, 12, 22, 0.82);
+  background: rgba(8, 12, 22, 0.93);
   border: 1px solid rgba(130, 160, 235, 0.22);
   border-radius: 6px;
-  backdrop-filter: blur(10px);
+  /* Opaque, not blurred — a blur here samples the canvas every frame, so the
+     FPS meter was measurably changing the number it reports. */
   font-variant-numeric: tabular-nums;
   user-select: none;
 }
@@ -514,20 +751,20 @@ canvas {
   text-align: center;
 }
 
-/* Narrow viewports: thinner plastic, and the panel spans the tube instead of
-   sitting at a fixed 274px that would crowd the globe. */
-@media (max-width: 640px) {
+/* Narrow viewports: shed the header's optional fields, then the right-hand
+   stack, before anything gets clipped. */
+@media (max-width: 1100px) {
+  .term-col-r {
+    display: none;
+  }
+  .tbar-l {
+    display: none;
+  }
+}
+@media (max-width: 620px) {
   :root {
-    --tube-r: 30px;
+    --tube-r: 8px;
     --tube-inset: 16px;
-  }
-  .brand {
-    font-size: 24px;
-  }
-  .leaderboard {
-    left: calc(var(--screen-t) + 12px);
-    right: calc(var(--screen-t) + 12px);
-    width: auto;
   }
   .crt-screw {
     display: none;
