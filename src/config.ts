@@ -1,10 +1,32 @@
-// One place for every tunable. Source selection is env-driven so nothing else in
-// the app needs to know whether data is synthetic or real:
-//   VITE_EVENT_SOURCE=synthetic | real   (default: synthetic)
-const sourceFlag = ((import.meta.env.VITE_EVENT_SOURCE as string) || "synthetic").toLowerCase();
+// One place for every tunable. Nothing else in the app knows whether data is
+// synthetic or real — see sourceFactory.
+//
+// Source selection, first match wins:
+//   ?source=auto | real | synthetic    — force one, no restart (DEV ONLY)
+//   VITE_EVENT_SOURCE=auto|real|synthetic
+//   otherwise: auto
+//
+// `auto` means one URL for both worlds: it starts synthetic so the globe is
+// never empty, probes the backend, and switches to the live feed if one
+// answers. Starting the backend is the only thing you do to see real data.
+function pickSource(): string {
+  // Dev only. A production build ignores this entirely (see sourceFactory), and
+  // reading it there would imply an override that does not exist.
+  const fromUrl =
+    import.meta.env.DEV && typeof location !== "undefined"
+      ? new URLSearchParams(location.search).get("source")
+      : null;
+  return (fromUrl || (import.meta.env.VITE_EVENT_SOURCE as string) || "auto").toLowerCase();
+}
+const sourceFlag = pickSource();
 
 export const config = {
-  eventSource: sourceFlag === "real" ? ("real" as const) : ("synthetic" as const),
+  eventSource:
+    sourceFlag === "real"
+      ? ("real" as const)
+      : sourceFlag === "synthetic"
+        ? ("synthetic" as const)
+        : ("auto" as const),
 
   // Synthetic generator
   seed: 1337,

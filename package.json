@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --port 5190",
     "build": "vite build",
-    "preview": "vite preview --port 5190"
+    "preview": "vite preview --port 5190",
+    "backend": "docker run --rm --name orbital-be -p 7010:7000 -v \"$PWD\":/src -w /src golang:1.25-alpine sh -c 'go run main.go -test -host 0.0.0.0'",
+    "backend:native": "go run main.go -test -http-port 7010"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.3",
