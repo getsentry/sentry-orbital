@@ -3,6 +3,12 @@
 A globe that draws a beam for every event, with a terminal overlay reading out
 throughput, SDK families and regions.
 
+### **<https://live.sentry.io>**
+
+That is the real thing, on the real feed. It is this repository's `master`
+branch: merge to `master` and it deploys itself (see [Deploy](#deploy)).
+Everything below is for running your own copy.
+
 ## Run it
 
 ```bash
@@ -82,17 +88,26 @@ Every style control is documented in [SETTINGS.md](SETTINGS.md).
 ## Build
 
 ```bash
-npm run build     # -> dist/
+npm run build     # -> static/, which is the directory main.go serves
 npm run preview   # serve it on :5190, still proxied to the backend
 ```
 
-> The container build does not work yet. `Dockerfile` expects the frontend under
-> `frontend/` with output at `/static`; it is at the repo root and Vite emits
-> `dist/`. The Go service serves `static/`, which nothing produces.
+Or build the container — one static Go binary plus the built frontend, the same
+image live.sentry.io runs:
+
+```bash
+docker build -t orbital .
+docker run --rm -p 7010:7000 -p 5556:5556/udp orbital -host=0.0.0.0 -test
+```
+
+<http://localhost:7010> — 7010 for the same reason the npm scripts use it, that
+macOS AirPlay answers on 7000. Drop `-test` when a real producer is sending UDP
+to 5556.
 
 ## Deploy
 
-Push to `master` builds the image and deploys it — nothing here is run by hand.
+Push to `master` builds the image and deploys it to <https://live.sentry.io>.
+Nothing here is run by hand.
 
 - **GitHub Actions** (`.github/workflows/build.yml`) builds the Dockerfile, runs
   a smoke test against the running container, and pushes
@@ -100,7 +115,6 @@ Push to `master` builds the image and deploys it — nothing here is run by hand
 - **GoCD** (`gocd/`) waits for that check by name — *Build and smoke test* — and
   rolls the image out to the `orbital` container in each US region.
 
-The image is one static Go binary plus the built frontend: `npm run build`
-writes to `static/`, which is the directory `main.go` serves. That is why the
-build output is `static/` and not `dist/` — point it elsewhere and the container
-serves nothing.
+The build output is `static/` and not `dist/` because `static/` is the directory
+`main.go` serves. Point it elsewhere and the pipeline goes green on an image
+that serves nothing.
