@@ -3,7 +3,7 @@
 A globe that draws a beam for every event, with a terminal overlay reading out
 throughput, SDK families and regions.
 
-[live.sentry.io](live.sentry.io)
+[live.sentry.io](https://live.sentry.io)
 
 ## Run it
 
