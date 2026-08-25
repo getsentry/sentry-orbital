@@ -5,10 +5,6 @@ throughput, SDK families and regions.
 
 ### **<https://live.sentry.io>**
 
-That is the real thing, on the real feed. It is this repository's `master`
-branch: merge to `master` and it deploys itself (see [Deploy](#deploy)).
-Everything below is for running your own copy.
-
 ## Run it
 
 ```bash
