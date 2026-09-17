@@ -3,7 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <title>Orbital</title>
+
+    <title>Sentry Live</title>
+    <meta name="description" content="Sentry telemetry command center" />
+    <link rel="canonical" href="https://live.sentry.io/" />
+    <!-- Matches the page background, so the mobile browser chrome does not
+         flash white around a page that is entirely deep blue. -->
+    <meta name="theme-color" content="#000b31" />
+
+    <!-- Icons. The SVG is the pixel mark at full detail and is what any current
+         browser picks; the .ico carries 16/32/48 rasters for everything else.
+         The mark is the Sentry logo on a 32x32 grid, so 32 and 48 are exact and
+         16 is an averaged-down copy of the same drawing rather than a simpler
+         one. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Social cards. The image URL has to be absolute — a scraper has no page
+         to resolve a relative one against — and is versioned in its filename
+         because most of them cache the old image indefinitely otherwise.
+         og:image is the only one declared: a second one makes the choice the
+         scraper's rather than ours. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Sentry" />
+    <meta property="og:url" content="https://live.sentry.io/" />
+    <meta property="og:title" content="Sentry Live" />
+    <meta property="og:description" content="Sentry telemetry command center" />
+    <meta property="og:image" content="https://live.sentry.io/og-v1.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="The Sentry logo over a pixelated Earth rising out of a starfield, with a LIVE indicator in the corner."
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sentry Live" />
+    <meta name="twitter:description" content="Sentry telemetry command center" />
+    <meta name="twitter:image" content="https://live.sentry.io/og-v1.png" />
+    <meta
+      name="twitter:image:alt"
+      content="The Sentry logo over a pixelated Earth rising out of a starfield, with a LIVE indicator in the corner."
+    />
+
     <link
       rel="preload"
       href="/fonts/DepartureMono-Regular.otf"
