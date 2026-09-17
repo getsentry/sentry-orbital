@@ -81,6 +81,18 @@ docker run --rm -p 7010:7000 -p 5556:5556/udp \
 
 Every style control is documented in [SETTINGS.md](SETTINGS.md).
 
+## Generated assets
+
+`tools/` holds scripts that generate things checked into the repo — the globe's
+land mask, the favicon set, and the social card. Nothing in there is served,
+shipped or run at build time; it is run by hand when an input changes, which is
+rarely. Vite copies only `public/`, `main.go` serves only `static/`, the runtime
+image is `FROM scratch`, and `tools/` is in `.dockerignore`, so it cannot reach
+production by any of those routes.
+
+See [tools/README.md](tools/README.md) for what each script does and how to
+re-run it.
+
 ## Build
 
 ```bash

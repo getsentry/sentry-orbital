@@ -2,6 +2,7 @@
 .github/
 .claude/
 gocd/
+tools/
 node_modules/
 dist/
 static/
