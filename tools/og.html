@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sentry Live — OG builder</title>
+<!--
+  Builds public/og-v1.png, the 1200x630 social card.
+
+  DEVELOPMENT ONLY. Nothing under tools/ reaches anyone: Vite copies only
+  public/ into static/, main.go serves only static/, the runtime image is FROM
+  scratch with just the binary and static/, and tools/ is in .dockerignore so it
+  never enters the build context either. This page is reachable at
+  localhost:5190 because the dev server serves the project root, and nowhere
+  else.
+
+  Run the dev server and open http://localhost:5190/tools/og.html, then use the
+  download link and save over public/og-v1.png.
+
+    ?plate=atlantic|americas|eurasia|pacific   which hemisphere faces the camera
+
+  WHY THE GLOBE IS COMPOSITED RATHER THAN CAPTURED IN PLACE
+  The app fits the planet to the viewport, so a frame with this much sky above a
+  distinctly curved horizon is not a camera the app can be put into — the globe
+  always fills roughly the same share of whatever it renders. Scaling a captured
+  disc into position is the only way to set its radius and its crest
+  independently, which is what this layout needs.
+
+  That is also why there are two plates rather than one. plates/globe/*.png is
+  the planet alone on the page ground; plates/stars.png is the field alone.
+  Baking them together and scaling would shrink the stars along with the globe
+  and leave a denser, finer patch of sky wherever the disc landed.
+
+  RE-CAPTURING THE PLATES
+  Set gl={{ antialias: true, preserveDrawingBuffer: true }} on the Canvas in
+  src/render/Scene.tsx and put this in localStorage under orbital.style.v2
+
+    {"beams":{"visible":false},"ufo":{"enabled":false},
+     "clouds":{"opacity":0.38},"stars":{"count":5200}}
+
+  Clouds stay on but well under their default 0.69 opacity. They were off
+  entirely in an earlier pass, when the planet was captured at the size it
+  appears on the card and they came out as white slabs. The disc is now drawn
+  from a plate larger than it lands so they scale down with it, but at full
+  opacity a bank of them still reads as a grey rectangle rather than as weather;
+  at 0.38 the coastline shows through. The star count is raised for the same
+  kind of reason — the default 2900 spread over this angle reads as empty sky.
+
+  globe/*.png — viewport 1200x1200, stars hidden via the scene graph, cropped
+  square and centred on the disc at 2232px, which is the planet's 930px radius
+  times GLOBE_PAD twice. Keep that relationship if the viewport changes, because
+  the compositor recovers the radius from the plate's width.
+
+  stars.png — viewport 800x960, globe and clouds hidden, taken 1:1 at 1600x1920.
+
+  Revert preserveDrawingBuffer afterwards; it costs frame time in the real app.
+-->
+<style>
+  body { margin: 0; background: #0a0a0f; color: #cdd6e8;
+         font: 13px/1.7 ui-monospace, SFMono-Regular, monospace; padding: 24px; }
+  canvas { display: block; width: 1200px; max-width: 100%; border: 1px solid #333;
+           margin-bottom: 14px; }
+  a { color: #ff7a18; }
+  .dim { color: #7d89a9; }
+  .err { color: #ff5a5a; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<p id="status">rendering…</p>
+<p class="dim" id="plates"></p>
+
+<script type="module">
+// ---------------------------------------------------------------- palette ---
+// Lifted from src/styles.css so the card cannot drift from the app.
+const NAVY = "#000b31";   // --card / page ground
+const LIVE = "#4ff0a5";   // --live
+
+// --------------------------------------------------------------- geometry ---
+// All fractions of the card, so the numbers say what they mean.
+const W0 = 1200, H0 = 630;
+
+const GLOBE_PAD = 1.2;   // plate half-width ÷ globe radius, fixed at capture
+const G_R = 0.585;       // radius ÷ width — sized so the arc clears the bottom
+                         // corners by ~28px instead of running off them
+// Top of the disc ÷ height. The globe grows from its crest rather than its
+// centre, so changing G_R flattens the arc without lifting it — position is
+// only ever this number.
+const G_CREST = 0.531;
+const LOCK_Y = 0.316;    // centre of the lockup ÷ height
+const LOCKUP_H = 93;     // height of the lockup, in card pixels
+
+const load = (src) => new Promise((ok, fail) => {
+  const i = new Image();
+  i.onload = () => ok(i);
+  i.onerror = () => fail(new Error(`missing ${src}`));
+  i.src = src;
+});
+
+/** The LIVE marker as the app draws it: a green dot with a glow, then the word
+ *  tracked at 1% of its size. Every other measurement is a fraction of the type
+ *  size too, so a bigger `size` scales the dot, the gap and the glow with it
+ *  rather than leaving a large word beside a small dot. */
+function livePill(x, px, py, u, size) {
+  x.font = `400 ${size * u}px "Departure Mono", monospace`;
+  x.letterSpacing = `${size * 0.01 * u}px`;
+  const dot = size * 0.175 * u;
+  const gap = size * 0.55 * u;
+  const w = dot * 2 + gap + x.measureText("LIVE").width;
+  const ox = px - w;
+  x.save();
+  x.shadowColor = LIVE;
+  x.shadowBlur = size * 0.45 * u;
+  x.fillStyle = LIVE;
+  x.beginPath();
+  x.arc(ox + dot, py, dot, 0, Math.PI * 2);
+  x.fill();
+  x.restore();
+  x.fillStyle = LIVE;
+  x.textAlign = "left";
+  x.textBaseline = "alphabetic";
+  x.fillText("LIVE", ox + dot * 2 + gap, py + size * 0.35 * u);
+}
+
+async function render(plateName, S = 1) {
+  const W = W0 * S, H = H0 * S, u = S;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const x = c.getContext("2d");
+
+  const [globeImg, starsImg, lockup] = await Promise.all([
+    load(`/tools/plates/globe/${plateName}.png`),
+    load("/tools/plates/stars.png"),
+    load("/tools/brand/lockup.png"),
+  ]);
+
+  x.fillStyle = NAVY;
+  x.fillRect(0, 0, W, H);
+
+  // Stars at their captured scale, centred on the frame and taken from the top.
+  const sw = Math.min(starsImg.naturalWidth, W0), sh = Math.min(starsImg.naturalHeight, H0);
+  x.drawImage(starsImg, Math.round((starsImg.naturalWidth - sw) / 2), 0, sw, sh, 0, 0, W, H);
+
+  // ---- planet ----
+  const R = G_R * W;
+  const crest = G_CREST * H;
+  const cx = W / 2, cy = crest + R;
+
+  x.save();
+  // Clipped to the planet, not to the atmosphere shell around it. Leaving room
+  // for the shell puts a ring of glow outside the disc, and once the wash has
+  // faded that ring reads as a drawn arc floating over the sky rather than as
+  // air. A hair of margin keeps the disc's own soft edge.
+  x.beginPath();
+  x.arc(cx, cy, R * 1.008, 0, Math.PI * 2);
+  x.clip();
+  const k = R / (globeImg.naturalWidth / 2 / GLOBE_PAD);
+  const dw = globeImg.naturalWidth * k, dh = globeImg.naturalHeight * k;
+  x.drawImage(globeImg, cx - dw / 2, cy - dh / 2, dw, dh);
+  x.restore();
+
+  // Full-frame wash, one colour, 10% at the midline to solid at the bottom
+  // edge. The gradient is defined over the lower half but painted across the
+  // whole card, so the top half takes the first stop as a flat 10% tint. It is
+  // laid down before the lockup, which therefore stays pure white.
+  const wash = x.createLinearGradient(0, H / 2, 0, H);
+  wash.addColorStop(0, "rgba(0, 0, 48, 0.10)");   // #000030
+  wash.addColorStop(1, "rgba(0, 0, 48, 1)");      // #000030
+  x.fillStyle = wash;
+  x.fillRect(0, 0, W, H);
+
+  // ---- lockup ----
+  // Sized by height; the supplied file is cropped tight to the artwork.
+  const h = LOCKUP_H * u;
+  const w = h * (lockup.naturalWidth / lockup.naturalHeight);
+  x.drawImage(lockup, (W - w) / 2, LOCK_Y * H - h / 2, w, h);
+
+  livePill(x, W - 42 * u, 48 * u, u, 26);
+  return c;
+}
+
+const q = new URLSearchParams(location.search);
+const PLATE = (q.get("plate") || "atlantic").replace(/[^a-z]/g, "");
+const S = Number(q.get("scale")) || 1;
+
+const status = document.getElementById("status");
+try {
+  // Departure Mono is the face the app sets its readouts in; the LIVE marker
+  // has to wait for it or it lands in the fallback and measures wrong.
+  await document.fonts.load('400 26px "Departure Mono"');
+
+  const c = await render(PLATE, S);
+  const shown = document.getElementById("c");
+  shown.width = c.width; shown.height = c.height;
+  shown.getContext("2d").drawImage(c, 0, 0);
+
+  const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+  window.__og = blob;
+  status.innerHTML = `${PLATE} · ${c.width}x${c.height}, ${(blob.size / 1024).toFixed(0)} KB — ` +
+    `<a href="${URL.createObjectURL(blob)}" download="og-v1.png">download og-v1.png</a> ` +
+    `<span class="dim">then save it over public/og-v1.png</span>`;
+  document.getElementById("plates").innerHTML =
+    ["atlantic", "americas", "eurasia", "pacific"]
+      .map((p) => p === PLATE ? `<b>${p}</b>` : `<a href="?plate=${p}">${p}</a>`)
+      .join(" · ");
+} catch (e) {
+  status.innerHTML = `<span class="err">${e.message}</span>`;
+}
+</script>
+</body>
+</html>
