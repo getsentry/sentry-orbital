@@ -64,10 +64,17 @@ jobs:
           curl -sf http://localhost:7000/stats | grep -q 'udp_received' || (echo "stats missing udp_received" && exit 1)
           # / must return 200 and be the built frontend, not a bare index:
           # the asset it names has to be in the image and served too.
-          curl -sf http://localhost:7000/ | grep -q '<title>Orbital</title>' || (echo "index page missing expected content" && exit 1)
+          # Assert on the mount point rather than the title -- the title is copy,
+          # and asserting on copy means every wording change is a red build.
+          curl -sf http://localhost:7000/ | grep -q 'id="root"' || (echo "index page is not the built frontend" && exit 1)
           ASSET=$(curl -sf http://localhost:7000/ | grep -o '/assets/index-[^"]*\.js' | head -1)
           [ -n "$ASSET" ] || (echo "index page names no built bundle" && exit 1)
           curl -sfI "http://localhost:7000$ASSET" > /dev/null || (echo "bundle $ASSET not served" && exit 1)
+          # public/ has to survive the build into the image: nothing else would
+          # catch the favicons and the social card quietly going missing.
+          for f in /favicon.ico /favicon.svg /og-v1.png /site.webmanifest; do
+            curl -sfI "http://localhost:7000$f" > /dev/null || (echo "static asset $f not served" && exit 1)
+          done
           docker stop orbital-smoke
 
       - name: Push to GHCR
