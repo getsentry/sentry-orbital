@@ -72,7 +72,7 @@ jobs:
           curl -sfI "http://localhost:7000$ASSET" > /dev/null || (echo "bundle $ASSET not served" && exit 1)
           # public/ has to survive the build into the image: nothing else would
           # catch the favicons and the social card quietly going missing.
-          for f in /favicon.ico /favicon.svg /og-v1.png /site.webmanifest; do
+          for f in /favicon.ico /favicon.svg /og-v2.png /site.webmanifest; do
             curl -sfI "http://localhost:7000$f" > /dev/null || (echo "static asset $f not served" && exit 1)
           done
           docker stop orbital-smoke

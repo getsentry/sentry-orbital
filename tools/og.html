@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Sentry Live — OG builder</title>
 <!--
-  Builds public/og-v1.png, the 1200x630 social card.
+  Builds public/og-v2.png, the 1200x630 social card.
 
   DEVELOPMENT ONLY. Nothing under tools/ reaches anyone: Vite copies only
   public/ into static/, main.go serves only static/, the runtime image is FROM
@@ -14,7 +14,7 @@
   else.
 
   Run the dev server and open http://localhost:5190/tools/og.html, then use the
-  download link and save over public/og-v1.png.
+  download link and save over public/og-v2.png.
 
     ?plate=atlantic|americas|eurasia|pacific   which hemisphere faces the camera
 
@@ -196,8 +196,8 @@ try {
   const blob = await new Promise((r) => c.toBlob(r, "image/png"));
   window.__og = blob;
   status.innerHTML = `${PLATE} · ${c.width}x${c.height}, ${(blob.size / 1024).toFixed(0)} KB — ` +
-    `<a href="${URL.createObjectURL(blob)}" download="og-v1.png">download og-v1.png</a> ` +
-    `<span class="dim">then save it over public/og-v1.png</span>`;
+    `<a href="${URL.createObjectURL(blob)}" download="og-v2.png">download og-v2.png</a> ` +
+    `<span class="dim">then save it over public/og-v2.png</span>`;
   document.getElementById("plates").innerHTML =
     ["atlantic", "americas", "eurasia", "pacific"]
       .map((p) => p === PLATE ? `<b>${p}</b>` : `<a href="?plate=${p}">${p}</a>`)
