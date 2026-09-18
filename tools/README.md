@@ -49,14 +49,25 @@ exists so this repo can write image files without taking on a dependency.
 
 ## A note on the social tags
 
-`index.html` keeps every `og:` and `twitter:` tag on a single line, in one
-contiguous block near the top of `<head>`, with only short comments around them.
-That is deliberate. Slackbot reads just the first 32KB of a document, not every
-scraper parses HTML properly, and `og:image:alt` is a sub-property of
-`og:image` — a tag wrapped across lines, or a stray property interrupting the
-image group, is the sort of thing a line-oriented parser drops the image over.
-An HTML comment also may not contain a double hyphen, so keep the prose here
-rather than in the head.
+`index.html` carries the smallest tag set that does the job: `og:type`,
+`og:site_name`, `og:url`, `og:title`, `og:description`, `og:locale`, a single
+`og:image`, and four `twitter:` tags. Each is on one line, in one contiguous
+block near the top of `<head>`, with only short comments around them. Slackbot
+reads just the first 32KB of a document, not every scraper parses HTML properly,
+and an HTML comment may not contain a double hyphen — so keep prose here rather
+than in the head.
+
+There used to be five more: `og:image:secure_url`, `og:image:type`,
+`og:image:width`, `og:image:height`, `og:image:alt`, plus `twitter:image:alt`.
+They are gone because Slack would not render the card while they were present.
+Everything else had been ruled out by comparing against three Sentry pages whose
+links do unfurl — sentry.io/welcome/, blog.sentry.io and an external control:
+tag completeness (ours was a superset), charset position, comment style,
+`name=` vs `property=` on the twitter tags, PNG vs webp, image size,
+`cache-control`, and Slack's own per-URL unfurl cache. The sub-property block
+was the only axis on which this page differed from all three. Adding any of them
+back is a live experiment, not a tidy-up — do it one at a time and check Slack
+on a URL it has not seen before.
 
 ## The social card
 
