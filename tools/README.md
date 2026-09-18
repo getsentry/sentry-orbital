@@ -47,9 +47,20 @@ down rather than swapped for a simpler drawing.
 `png.mjs` is a dependency-free PNG encoder/decoder plus an `.ico` packer. It
 exists so this repo can write image files without taking on a dependency.
 
+## A note on the social tags
+
+`index.html` keeps every `og:` and `twitter:` tag on a single line, in one
+contiguous block near the top of `<head>`, with only short comments around them.
+That is deliberate. Slackbot reads just the first 32KB of a document, not every
+scraper parses HTML properly, and `og:image:alt` is a sub-property of
+`og:image` — a tag wrapped across lines, or a stray property interrupting the
+image group, is the sort of thing a line-oriented parser drops the image over.
+An HTML comment also may not contain a double hyphen, so keep the prose here
+rather than in the head.
+
 ## The social card
 
-`og.html` builds `public/og-v1.png`, the 1200×630 card. Start the dev server,
+`og.html` builds `public/og-v2.png`, the 1200×630 card. Start the dev server,
 open <http://localhost:5190/tools/og.html>, and use the download link.
 
 It composites rather than screenshots. The app fits the planet to the viewport,
