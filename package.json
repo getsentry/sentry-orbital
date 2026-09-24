@@ -24,10 +24,10 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.169.0",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.1.0",
     "topojson-client": "^3.1.0",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11",
+    "vite": "^8.2.2",
     "world-atlas": "^2.0.2"
   }
 }
