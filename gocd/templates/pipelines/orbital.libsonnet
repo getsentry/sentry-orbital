@@ -1,11 +1,6 @@
 local gocdtasks = import 'github.com/getsentry/gocd-jsonnet/libs/gocd-tasks.libsonnet';
 
 function(region) {
-  environment_variables: {
-    // k8s-deploy dispatches GitHub workflows using these App credentials.
-    GITHUB_APP_ID: '{{SECRET:[devinfra-github][app_id]}}',
-    GITHUB_APP_PRIVATE_KEY: '{{SECRET:[devinfra-github][private_key]}}',
-  },
   materials: {
     orbital_repo: {
       git: 'git@github.com:getsentry/sentry-orbital.git',
@@ -19,6 +14,10 @@ function(region) {
     {
       checks: {
         fetch_materials: true,
+        environment_variables: {
+          GITHUB_APP_ID: '{{SECRET:[devinfra-github][app_id]}}',
+          GITHUB_APP_PRIVATE_KEY: '{{SECRET:[devinfra-github][private_key]}}',
+        },
         jobs: {
           check: {
             timeout: 1200,
@@ -40,6 +39,11 @@ function(region) {
           deploy: {
             timeout: 1200,
             elastic_profile_id: 'orbital-k8s',
+            environment_variables: {
+              // k8s-deploy dispatches GitHub workflows using these App credentials.
+              GITHUB_APP_ID: '{{SECRET:[devinfra-github][app_id]}}',
+              GITHUB_APP_PRIVATE_KEY: '{{SECRET:[devinfra-github][private_key]}}',
+            },
             tasks: [
               gocdtasks.script(importstr '../bash/deploy.sh'),
             ],
