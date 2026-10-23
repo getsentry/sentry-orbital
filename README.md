@@ -66,7 +66,7 @@ UDP, publish that too:
 
 ```bash
 docker run --rm -p 7010:7000 -p 5556:5556/udp \
-  -v "$PWD":/src -w /src golang:1.25-alpine \
+  -v "$PWD":/src -w /src golang:1.26-alpine \
   sh -c 'go run main.go -host 0.0.0.0'
 ```
 
